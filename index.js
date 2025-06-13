@@ -16,14 +16,14 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const AUTO_SEEN = process.env.AUTO_SEEN === "on";  // New: load auto-seen from .env
+const AUTO_SEEN = process.env.AUTO_SEEN === "on";
 
 app.get("/", (req, res) => {
     res.send("✅ BEN - Whittaker Tech Pairing Bot is running!");
 });
 
 app.get("/pair", async (req, res) => {
-    const phoneNumber = req.query.number; // full international e.g. 2557xxxxxxx
+    const phoneNumber = req.query.number;
 
     if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
         return res.status(400).send("❌ Invalid or missing phone number.");
@@ -32,8 +32,35 @@ app.get("/pair", async (req, res) => {
     const authFolder = `./auth/${phoneNumber}`;
     fs.ensureDirSync(authFolder);
 
+    // If SESSION_ID_BASE64 is set in .env, decode and save creds.json
+    if (process.env.SESSION_ID_BASE64) {
+        const credsPath = path.join(authFolder, "creds.json");
+        try {
+            const sessionJSON = Buffer.from(process.env.SESSION_ID_BASE64, "base64").toString("utf-8");
+            fs.writeFileSync(credsPath, sessionJSON);
+            console.log(`✅ Loaded session creds.json from env for ${phoneNumber}`);
+        } catch (e) {
+            console.error("❌ Failed to decode SESSION_ID_BASE64 from env:", e);
+        }
+    }
+
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
     const { version } = await fetchLatestBaileysVersion();
+
+    // Load plugins dynamically from plugins folder
+    const pluginsFolder = path.resolve(__dirname, "plugins");
+    let plugins = {};
+    if (fs.existsSync(pluginsFolder)) {
+        const files = fs.readdirSync(pluginsFolder).filter(f => f.endsWith(".js"));
+        for (const file of files) {
+            try {
+                plugins[file] = require(path.join(pluginsFolder, file));
+                console.log(`✅ Loaded plugin: ${file}`);
+            } catch (e) {
+                console.error(`❌ Failed to load plugin ${file}:`, e);
+            }
+        }
+    }
 
     const sock = makeWASocket({
         version,
@@ -52,18 +79,15 @@ app.get("/pair", async (req, res) => {
 
             if (reason === DisconnectReason.loggedOut) {
                 console.log("🔴 Disconnected: Logged out.");
-                // Optionally: delete auth folder to force fresh login next time
                 // await fs.remove(authFolder);
             } else {
                 console.log("♻️ Attempting to reconnect...");
-                // reconnect logic can go here, but baileys auto reconnects by default
             }
         } else if (connection === "open") {
             console.log("✅ Connected to WhatsApp");
 
             await saveCreds();
 
-            // Load session and convert to base64
             const credsPath = path.join(authFolder, "creds.json");
             const sessionData = fs.readFileSync(credsPath);
             const base64Session = Buffer.from(sessionData).toString("base64");
@@ -80,7 +104,6 @@ app.get("/pair", async (req, res) => {
         }
     });
 
-    // New: Handle new messages - mark as read if AUTO_SEEN=on
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (!messages || !messages[0]) return;
         const msg = messages[0];
@@ -95,12 +118,27 @@ app.get("/pair", async (req, res) => {
         }
     });
 
+    // Example: run all loaded plugins on incoming messages (you can customize this!)
+    sock.ev.on("messages.upsert", async ({ messages }) => {
+        if (!messages || !messages[0]) return;
+        const msg = messages[0];
+
+        for (const pluginName in plugins) {
+            try {
+                if (typeof plugins[pluginName] === "function") {
+                    await plugins[pluginName](sock, msg);
+                }
+            } catch (e) {
+                console.error(`❌ Plugin ${pluginName} error:`, e);
+            }
+        }
+    });
+
     const code = await generatePairingCode(`${phoneNumber}@s.whatsapp.net`, sock);
 
     res.send(`🔗 Pairing code generated and sent to terminal for: ${phoneNumber}`);
 });
 
-// New endpoint to check if session is active
 app.get("/status", (req, res) => {
     const phoneNumber = req.query.number;
     if (!phoneNumber) return res.status(400).send("Missing number param");
