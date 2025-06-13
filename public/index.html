@@ -1,141 +1,56 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
-<html lang="sw">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BEN - Whittaker Tech Pairing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BEN - Whittaker Tech | Pair WhatsApp</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #2c5364, #203a43, #0f2027);
-      color: #eee;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-
-    h1 {
-      margin-bottom: 0.4em;
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-
-    form {
-      margin-bottom: 1.5em;
-    }
-
-    input[type="text"] {
-      padding: 0.8em 1em;
-      font-size: 1.1em;
-      border-radius: 8px;
-      border: none;
-      width: 270px;
-      text-align: center;
-    }
-
-    button {
-      padding: 0.8em 1.5em;
-      font-size: 1.1em;
-      border-radius: 8px;
-      border: none;
-      margin-left: 0.8em;
-      cursor: pointer;
-      background: linear-gradient(to right, #0072ff, #00c6ff);
-      color: #fff;
-      transition: background 0.3s ease;
-    }
-
-    button:hover {
-      background: #005fa3;
-    }
-
-    #pairing-code {
-      margin-top: 1em;
-      font-size: 1.6em;
-      font-weight: 700;
-      background: #1a1a1a;
-      padding: 1em 2em;
-      border-radius: 10px;
-      letter-spacing: 5px;
-      display: inline-block;
-      user-select: all;
-    }
-
-    img {
-      max-width: 250px;
-      margin-top: 2em;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0, 198, 255, 0.6);
-    }
-
-    audio {
-      display: none;
-    }
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f8f8; }
+    .container { max-width: 500px; margin: auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; }
+    .result { background: #f0f0f0; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .success { color: green; }
+    .error { color: red; }
   </style>
 </head>
 <body>
-
-  <h1>BEN - Whittaker Tech</h1>
-  <p>Pata Pairing Code yako ya WhatsApp</p>
-
-  <form id="pairForm">
-    <input
-      id="phoneInput"
-      type="text"
-      placeholder="Ingiza namba yako (2557XXXXXXX)"
-      required
-      pattern="\d{10,15}"
-      title="Namba lazima iwe na 10-15 tarakimu"
-    />
-    <button type="submit">📡 Pata Code</button>
-  </form>
-
-  <div id="result" style="min-height: 2.5em;"></div>
-
-  <img src="cyber.png" alt="Cyber" />
-
-  <audio id="bgMusic" src="solitary.mp3" autoplay loop></audio>
+  <div class="container">
+    <h2>🟢 Pair WhatsApp Number</h2>
+    <input type="text" id="number" placeholder="Ingiza namba (mf. 2557XXXXXXX)" />
+    <button onclick="pairNumber()">Pair Now</button>
+    <div class="result" id="result"></div>
+  </div>
 
   <script>
-    const form = document.getElementById("pairForm");
-    const phoneInput = document.getElementById("phoneInput");
-    const resultDiv = document.getElementById("result");
-    const bgMusic = document.getElementById("bgMusic");
+    async function pairNumber() {
+      const number = document.getElementById("number").value.trim();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "⏳ Inachakata...";
 
-    // Auto-play fix for some browsers
-    document.addEventListener("click", () => {
-      bgMusic.muted = false;
-      bgMusic.play().catch(() => {});
-    }, { once: true });
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const phone = phoneInput.value.trim();
-      resultDiv.innerHTML = "⌛ Inachakata pairing code...";
+      if (!/^\d{10,15}$/.test(number)) {
+        resultDiv.innerHTML = "<span class='error'>⚠️ Namba si sahihi. Tafadhali andika vizuri.</span>";
+        return;
+      }
 
       try {
-        const res = await fetch(`/pair?number=${encodeURIComponent(phone)}`);
-        const data = await res.json();
+        const response = await fetch(`/pair?number=${number}`);
+        const data = await response.json();
 
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || "Kosa lisilotarajiwa");
+        if (data.success) {
+          resultDiv.innerHTML = `
+            <div class="success">
+              ✅ Paired successfully!<br/>
+              <b>Number:</b> ${data.phoneNumber}<br/>
+              <b>Pairing Code:</b> ${data.pairingCode}
+            </div>`;
+        } else {
+          resultDiv.innerHTML = `<span class='error'>❌ ${data.error || "Pairing failed"}</span>`;
         }
-
-        resultDiv.innerHTML = `
-          <div>📲 Namba: <strong>${data.phoneNumber}</strong></div>
-          <div>🔑 Pairing Code:</div>
-          <div id="pairing-code">${data.pairingCode}</div>
-        `;
-      } catch (err) {
-        resultDiv.textContent = "❌ Kosa: " + err.message;
+      } catch (error) {
+        resultDiv.innerHTML = `<span class='error'>🚫 Error: ${error.message}</span>`;
       }
-    });
+    }
   </script>
 </body>
 </html>
