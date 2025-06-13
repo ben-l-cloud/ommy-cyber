@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BEN - Whittaker Tech Pairing</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f2027;  /* fallback for old browsers */
+      background: linear-gradient(to right, #2c5364, #203a43, #0f2027);
+      color: #eee;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 0.2em;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    form {
+      margin-bottom: 1.5em;
+    }
+    input[type="text"] {
+      padding: 0.8em 1em;
+      font-size: 1.1em;
+      border-radius: 5px;
+      border: none;
+      width: 250px;
+      text-align: center;
+    }
+    button {
+      padding: 0.8em 1.5em;
+      font-size: 1.1em;
+      border-radius: 5px;
+      border: none;
+      margin-left: 0.8em;
+      cursor: pointer;
+      background: #00c6ff;
+      background: linear-gradient(to right, #0072ff, #00c6ff);
+      color: #fff;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    #pairing-code {
+      margin-top: 1em;
+      font-size: 1.4em;
+      font-weight: 600;
+      background: #222;
+      padding: 0.8em 1.2em;
+      border-radius: 10px;
+      letter-spacing: 4px;
+      user-select: all;
+      display: inline-block;
+    }
+    img {
+      max-width: 300px;
+      margin-top: 2em;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0, 198, 255, 0.7);
+    }
+    audio {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>BEN - Whittaker Tech Pairing</h1>
+
+  <form id="pairForm">
+    <input
+      id="phoneInput"
+      type="text"
+      placeholder="Ingiza namba yako ya simu (e.g. 2557xxxxxxx)"
+      required
+      pattern="\d{10,15}"
+      title="Ingiza namba sahihi (10-15 digits)"
+    />
+    <button type="submit">Pata Pairing Code</button>
+  </form>
+
+  <div id="result" style="min-height: 2.5em;"></div>
+
+  <img src="cyber.png" alt="Cyber Image" />
+
+  <audio id="bgMusic" src="solitary.mp3" autoplay muted loop></audio>
+
+  <script>
+    const form = document.getElementById("pairForm");
+    const phoneInput = document.getElementById("phoneInput");
+    const resultDiv = document.getElementById("result");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const phone = phoneInput.value.trim();
+
+      resultDiv.textContent = "⌛ Tunapata pairing code...";
+
+      try {
+        const res = await fetch(`/pair?number=${encodeURIComponent(phone)}`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || "Kosa la server");
+        }
+        const data = await res.json();
+
+        if (data.success) {
+          resultDiv.innerHTML = `
+            <div>📲 Namba: <strong>${data.phoneNumber}</strong></div>
+            <div>🔑 Pairing Code:</div>
+            <div id="pairing-code">${data.pairingCode}</div>
+          `;
+        } else {
+          resultDiv.textContent = "❌ Hakuna pairing code imetolewa.";
+        }
+      } catch (err) {
+        resultDiv.textContent = "❌ Kosa: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
