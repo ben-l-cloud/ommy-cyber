@@ -1,0 +1,49 @@
+# --- Server Configuration ---
+PORT=3000
+HOST=0.0.0.0
+
+# --- WhatsApp Bot Settings ---
+OWNER_NUMBER=2557XXXXXXX
+SESSION_ID_BASE64=
+
+# --- Bot Features Toggles (on/off) ---
+AUTO_SEEN=on               # Automatically mark incoming messages as read
+AUTO_REPLY=off             # Automatically reply to messages
+AUTO_REACT=off             # Automatically react to messages
+AUTO_TYPING=off            # Automatically show typing status
+AUTO_RECORD=off            # Automatically show recording status
+AUTO_STATUS_UPDATE=off     # Automatically update WhatsApp status
+
+# --- Plugins & Modules ---
+PLUGINS_DIR=./plugins      # Directory path for external plugins or commands
+
+# --- Logging & Debugging ---
+LOG_LEVEL=info             # Options: error, warn, info, debug
+DEBUG_MODE=false           # true or false for verbose debug output
+
+# --- API Keys & External Services ---
+OPENAI_API_KEY=
+IMAGE_API_KEY=
+TRANSLATION_API_KEY=
+
+# --- Session Management ---
+SESSION_EXPIRY_DAYS=7      # Days before session expires or needs re-authentication
+MAX_CONNECTION_RETRIES=5   # Number of reconnect attempts before failure
+
+# --- Command & Interaction ---
+CUSTOM_PREFIX=!
+WELCOME_MESSAGE="Karibu kwenye BEN - Whittaker Tech Bot!"
+GOODBYE_MESSAGE="Asante kwa kutumia bot, tutaonana tena!"
+
+# --- Localization & Timezone ---
+LANGUAGE=sw               # sw=Swahili, en=English, etc.
+TIMEZONE=Africa/Dar_es_Salaam
+
+# --- Rate Limiting (Optional) ---
+RATE_LIMIT_ENABLED=false
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=60000
+
+# --- Security ---
+ENABLE_CORS=false
+ALLOWED_ORIGINS=http://localhost:3000
