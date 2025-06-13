@@ -1,56 +1,94 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BEN - Whittaker Tech | Pair WhatsApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BEN - Whittaker Tech Pairing Bot</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f8f8; }
-    .container { max-width: 500px; margin: auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
-    input, button { width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; }
-    .result { background: #f0f0f0; padding: 10px; border-radius: 6px; margin-top: 10px; }
-    .success { color: green; }
-    .error { color: red; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f9f9f9;
+      color: #333;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 1rem;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    pre {
+      background: #222;
+      color: #0f0;
+      padding: 15px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>🟢 Pair WhatsApp Number</h2>
-    <input type="text" id="number" placeholder="Ingiza namba (mf. 2557XXXXXXX)" />
-    <button onclick="pairNumber()">Pair Now</button>
-    <div class="result" id="result"></div>
-  </div>
+  <h1>BEN - Whittaker Tech Pairing Bot</h1>
+  <p>Ingiza namba ya simu (tarehe: 10-15 digits, bila + au 0):</p>
+  <input type="text" id="phoneNumber" placeholder="Tafuta namba, mfano: 2557XXXXXXX" />
+  <button id="pairBtn">Pata Pairing Code</button>
+  
+  <div id="result"></div>
+  <div id="error" class="error"></div>
 
   <script>
-    async function pairNumber() {
-      const number = document.getElementById("number").value.trim();
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = "⏳ Inachakata...";
+    const pairBtn = document.getElementById("pairBtn");
+    const phoneInput = document.getElementById("phoneNumber");
+    const resultDiv = document.getElementById("result");
+    const errorDiv = document.getElementById("error");
+
+    // Backend domain yako hapa:
+    const backendDomain = "https://ommy-cyber-pairing-site.onrender.com";
+
+    pairBtn.addEventListener("click", async () => {
+      const number = phoneInput.value.trim();
+
+      resultDiv.textContent = "";
+      errorDiv.textContent = "";
 
       if (!/^\d{10,15}$/.test(number)) {
-        resultDiv.innerHTML = "<span class='error'>⚠️ Namba si sahihi. Tafadhali andika vizuri.</span>";
+        errorDiv.textContent = "Namba si sahihi. Ingiza namba ya simu 10 hadi 15 tarakimu.";
         return;
       }
 
       try {
-        const response = await fetch(`/pair?number=${number}`);
+        const response = await fetch(`${backendDomain}/pair?number=${number}`);
         const data = await response.json();
 
         if (data.success) {
           resultDiv.innerHTML = `
-            <div class="success">
-              ✅ Paired successfully!<br/>
-              <b>Number:</b> ${data.phoneNumber}<br/>
-              <b>Pairing Code:</b> ${data.pairingCode}
-            </div>`;
+            <h2>Pairing Code kwa namba: ${data.phoneNumber}</h2>
+            <pre>${data.pairingCode}</pre>
+            <p>Tumia pairing code hii kudeply bot yako.</p>
+          `;
         } else {
-          resultDiv.innerHTML = `<span class='error'>❌ ${data.error || "Pairing failed"}</span>`;
+          errorDiv.textContent = data.error || "Kuna tatizo limetokea.";
         }
-      } catch (error) {
-        resultDiv.innerHTML = `<span class='error'>🚫 Error: ${error.message}</span>`;
+      } catch (err) {
+        errorDiv.textContent = "Imeshindikana kuwasiliana na server: " + err.message;
       }
-    }
+    });
   </script>
 </body>
 </html>
