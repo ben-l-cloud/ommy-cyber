@@ -1,94 +1,58 @@
+<!-- ✅ public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BEN - Whittaker Tech Pairing Bot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BEN - Whittaker Tech | Pair</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #f9f9f9;
-      color: #333;
+      font-family: sans-serif;
+      background: #111;
+      color: #0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 50px;
     }
     input, button {
       padding: 10px;
-      font-size: 1rem;
-      margin: 5px 0;
-      width: 100%;
-      box-sizing: border-box;
+      margin: 10px;
+      font-size: 1.1em;
     }
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    pre {
-      background: #222;
-      color: #0f0;
-      padding: 15px;
-      border-radius: 5px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .error {
-      color: red;
-      margin-top: 10px;
+    .code {
+      background: #000;
+      border: 1px solid #0f0;
+      padding: 10px;
+      margin-top: 20px;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
-  <h1>BEN - Whittaker Tech Pairing Bot</h1>
-  <p>Ingiza namba ya simu (tarehe: 10-15 digits, bila + au 0):</p>
-  <input type="text" id="phoneNumber" placeholder="Tafuta namba, mfano: 2557XXXXXXX" />
-  <button id="pairBtn">Pata Pairing Code</button>
-  
-  <div id="result"></div>
-  <div id="error" class="error"></div>
+  <h1>🧠 BEN - Whittaker Tech</h1>
+  <p>Enter your WhatsApp number to pair:</p>
+  <input id="number" placeholder="2557XXXXXXXX" />
+  <button onclick="getPair()">Get Pair Code</button>
+  <div class="code" id="result"></div>
 
   <script>
-    const pairBtn = document.getElementById("pairBtn");
-    const phoneInput = document.getElementById("phoneNumber");
-    const resultDiv = document.getElementById("result");
-    const errorDiv = document.getElementById("error");
-
-    // Backend domain yako hapa:
-    const backendDomain = "https://ommy-cyber-pairing-site.onrender.com";
-
-    pairBtn.addEventListener("click", async () => {
-      const number = phoneInput.value.trim();
-
-      resultDiv.textContent = "";
-      errorDiv.textContent = "";
-
-      if (!/^\d{10,15}$/.test(number)) {
-        errorDiv.textContent = "Namba si sahihi. Ingiza namba ya simu 10 hadi 15 tarakimu.";
-        return;
-      }
-
+    async function getPair() {
+      const number = document.getElementById('number').value;
+      if (!number) return alert('Please enter your number!');
+      document.getElementById('result').innerText = '⏳ Please wait...';
       try {
-        const response = await fetch(`${backendDomain}/pair?number=${number}`);
-        const data = await response.json();
-
+        const res = await fetch(`/pair?number=${number}`);
+        const data = await res.json();
         if (data.success) {
-          resultDiv.innerHTML = `
-            <h2>Pairing Code kwa namba: ${data.phoneNumber}</h2>
-            <pre>${data.pairingCode}</pre>
-            <p>Tumia pairing code hii kudeply bot yako.</p>
-          `;
+          document.getElementById('result').innerText = `🔗 Pairing Code: ${data.pairingCode}`;
         } else {
-          errorDiv.textContent = data.error || "Kuna tatizo limetokea.";
+          document.getElementById('result').innerText = `❌ Error: ${data.error}`;
         }
       } catch (err) {
-        errorDiv.textContent = "Imeshindikana kuwasiliana na server: " + err.message;
+        document.getElementById('result').innerText = `❌ Request failed: ${err}`;
       }
-    });
+    }
   </script>
 </body>
 </html>
