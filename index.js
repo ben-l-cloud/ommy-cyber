@@ -16,11 +16,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
+// Helper: load .env boolean
 const loadEnvBoolean = (name, defaultVal = false) => {
   const val = process.env[name]?.toLowerCase();
   return val === "on" || (val === undefined ? defaultVal : false);
 };
 
+// Load config
 const CONFIG = {
   PORT: process.env.PORT || 3000,
   AUTO_SEEN: loadEnvBoolean("AUTO_SEEN"),
@@ -45,7 +47,6 @@ app.get("/", (req, res) => {
 
 app.get("/pair", async (req, res) => {
   const phoneNumber = req.query.number;
-
   if (!phoneNumber || !/^[0-9]{10,15}$/.test(phoneNumber)) {
     return res.status(400).json({ error: "Invalid or missing phone number." });
   }
@@ -67,6 +68,7 @@ app.get("/pair", async (req, res) => {
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   const { version } = await fetchLatestBaileysVersion();
 
+  // Load plugins
   const pluginsFolder = path.resolve(__dirname, CONFIG.PLUGINS_DIR);
   let plugins = {};
   if (fs.existsSync(pluginsFolder)) {
@@ -106,13 +108,12 @@ app.get("/pair", async (req, res) => {
       console.log("✅ Connected to WhatsApp");
       await saveCreds();
 
+      // Send session ID to user
       const credsPath = path.join(authFolder, "creds.json");
       try {
         const sessionData = fs.readFileSync(credsPath);
         const base64Session = Buffer.from(sessionData).toString("base64");
-
-        const message = `🌐 *BEN - Whittaker Tech | SESSION ID yako:*\n\n\`\`\`\n${base64Session}\n\`\`\`\n🧠 Tumia hii SESSION_ID kudeply WhatsApp bot yako bila QR code.`;
-
+        const message = `🌐 *BEN - Whittaker Tech | SESSION ID yako:*\n\n\`\`\`${base64Session}\`\`\`\n\n🧠 Tumia hii SESSION_ID kudeply WhatsApp bot yako bila QR code.`;
         await sock.sendMessage(`${phoneNumber}@s.whatsapp.net`, { text: message });
         console.log("✅ Session ID sent to user.");
       } catch (e) {
@@ -151,6 +152,7 @@ app.get("/pair", async (req, res) => {
     }
   });
 
+  // Wait for pairing code
   let pairingCodeToSend = null;
   try {
     await new Promise((resolve, reject) => {
@@ -180,13 +182,10 @@ app.get("/pair", async (req, res) => {
     return res.status(500).json({ success: false, error });
   }
 
-  res.json({
-    success: true,
-    phoneNumber,
-    pairingCode: pairingCodeToSend,
-  });
+  res.json({ success: true, phoneNumber, pairingCode: pairingCodeToSend });
 });
 
+// Status endpoint
 app.get("/status", (req, res) => {
   const phoneNumber = req.query.number;
   if (!phoneNumber) return res.status(400).send("Missing number param");
@@ -199,7 +198,8 @@ app.get("/status", (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 BEN - Whittaker Tech session bot running on port ${PORT}`);
-  console.log(`📲 Pair with: http://localhost:${PORT}/pair?number=2557XXXXXXX`);
+  console.log(`🚀 BEN - Whittaker Tech bot running on port ${PORT}`);
+  console.log(`📲 Pair here: http://localhost:${PORT}/pair?number=2557XXXXXXX`);
 });
