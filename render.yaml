@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ben-whittaker-tech-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: AUTO_SEEN
+        value: "on"
+      - key: AUTO_TYPING
+        value: "off"
+      - key: SESSION_ID_BASE64
+        value: ""  # weka session ID base64 hapa ukipenda
+      - key: OWNER_NUMBER
+        value: "255760317060"
