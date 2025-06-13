@@ -9,13 +9,16 @@ const { Boom } = require("@hapi/boom");
 const app = express();
 app.use(express.json());
 
-// ✅ Helper function kusoma boolean env (on/off)
+// Serve static files from public folder
+app.use(express.static("public"));
+
+// Helper to read boolean from env (on/off)
 const loadEnvBoolean = (name, defaultVal = false) => {
   const val = process.env[name]?.toLowerCase();
   return val === "on" || (val === undefined ? defaultVal : false);
 };
 
-// ✅ Soma env variables kwa urahisi na kisasa
+// Config
 const CONFIG = {
   PORT: process.env.PORT || 3000,
   AUTO_SEEN: loadEnvBoolean("AUTO_SEEN"),
@@ -34,26 +37,27 @@ const CONFIG = {
 
 const { PORT, AUTO_SEEN, SESSION_ID_BASE64 } = CONFIG;
 
+// Basic homepage
 app.get("/", (req, res) => {
   res.send("✅ BEN - Whittaker Tech Pairing Bot is running!");
 });
 
+// Pair endpoint that returns pairing code in JSON
 app.get("/pair", async (req, res) => {
   const phoneNumber = req.query.number;
 
   if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
-    return res.status(400).send("❌ Invalid or missing phone number.");
+    return res.status(400).json({ error: "Invalid or missing phone number." });
   }
 
   const authFolder = `./auth/${phoneNumber}`;
   fs.ensureDirSync(authFolder);
 
-  // ✅ Ikiwa SESSION_ID_BASE64 ipo kwenye .env
   if (SESSION_ID_BASE64) {
     const credsPath = path.join(authFolder, "creds.json");
     try {
       const sessionJSON = Buffer.from(SESSION_ID_BASE64, "base64").toString("utf-8");
-      fs.writeFileSync(credsPath, sessionJSON);
+      fs.writeFileSync(credsPath, sessionJSON, { encoding: "utf-8" });
       console.log(`✅ Loaded session creds.json from env for ${phoneNumber}`);
     } catch (e) {
       console.error("❌ Failed to decode SESSION_ID_BASE64 from env:", e);
@@ -63,11 +67,11 @@ app.get("/pair", async (req, res) => {
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   const { version } = await fetchLatestBaileysVersion();
 
-  // ✅ Load plugins
+  // Load plugins
   const pluginsFolder = path.resolve(__dirname, CONFIG.PLUGINS_DIR);
   let plugins = {};
   if (fs.existsSync(pluginsFolder)) {
-    const files = fs.readdirSync(pluginsFolder).filter(f => f.endsWith(".js"));
+    const files = fs.readdirSync(pluginsFolder).filter((f) => f.endsWith(".js"));
     for (const file of files) {
       try {
         plugins[file] = require(path.join(pluginsFolder, file));
@@ -84,10 +88,11 @@ app.get("/pair", async (req, res) => {
     printQRInTerminal: false,
     syncFullHistory: false,
     connectTimeoutMs: 60_000,
-    shouldIgnoreJid: jid => false,
-    getMessage: async () => ({ conversation: "🟢 Message placeholder." })
+    shouldIgnoreJid: (jid) => false,
+    getMessage: async () => ({ conversation: "🟢 Message placeholder." }),
   });
 
+  let pairingCodeValue = null;
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr, pairingCode }) => {
     if (connection === "close") {
       const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
@@ -95,7 +100,6 @@ app.get("/pair", async (req, res) => {
 
       if (reason === DisconnectReason.loggedOut) {
         console.log("🔴 Disconnected: Logged out.");
-        // await fs.remove(authFolder);
       } else {
         console.log("♻️ Attempting to reconnect...");
       }
@@ -105,18 +109,23 @@ app.get("/pair", async (req, res) => {
       await saveCreds();
 
       const credsPath = path.join(authFolder, "creds.json");
-      const sessionData = fs.readFileSync(credsPath);
-      const base64Session = Buffer.from(sessionData).toString("base64");
+      try {
+        const sessionData = fs.readFileSync(credsPath);
+        const base64Session = Buffer.from(sessionData).toString("base64");
 
-      const message = `🌐 *BEN - Whittaker Tech | SESSION ID yako:*\n\n\`\`\`\n${base64Session}\n\`\`\`\n🧠 Tumia hii SESSION_ID kudeply WhatsApp bot yako bila QR code.`;
+        const message = `🌐 *BEN - Whittaker Tech | SESSION ID yako:*\n\n\`\`\`\n${base64Session}\n\`\`\`\n🧠 Tumia hii SESSION_ID kudeply WhatsApp bot yako bila QR code.`;
 
-      await sock.sendMessage(`${phoneNumber}@s.whatsapp.net`, { text: message });
-      console.log("✅ Session ID sent to user.");
+        await sock.sendMessage(`${phoneNumber}@s.whatsapp.net`, { text: message });
+        console.log("✅ Session ID sent to user.");
+      } catch (e) {
+        console.error("❌ Failed to send session ID message:", e);
+      }
     } else if (qr) {
       console.log(`📟 QR Code received for ${phoneNumber}`);
       qrcode.generate(qr, { small: true });
     } else if (pairingCode) {
       console.log(`🔗 Pairing Code for ${phoneNumber}: ${pairingCode}`);
+      pairingCodeValue = pairingCode;
     }
   });
 
@@ -133,7 +142,6 @@ app.get("/pair", async (req, res) => {
       }
     }
 
-    // ✅ Run plugins
     for (const pluginName in plugins) {
       try {
         if (typeof plugins[pluginName] === "function") {
@@ -145,11 +153,38 @@ app.get("/pair", async (req, res) => {
     }
   });
 
+  // Generate pairing code (8-digit code string)
   const code = await generatePairingCode(`${phoneNumber}@s.whatsapp.net`, sock);
 
-  res.send(`🔗 Pairing code generated and sent to terminal for: ${phoneNumber}`);
+  // Wait for pairingCodeValue or fallback to code (timeout after ~5s)
+  const waitForPairingCode = () =>
+    new Promise((resolve) => {
+      let tries = 0;
+      const interval = setInterval(() => {
+        if (pairingCodeValue) {
+          clearInterval(interval);
+          resolve(pairingCodeValue);
+        } else {
+          tries++;
+          if (tries > 50) {
+            clearInterval(interval);
+            resolve(code);
+          }
+        }
+      }, 100);
+    });
+
+  const pairingCodeToSend = await waitForPairingCode();
+
+  res.json({
+    success: true,
+    phoneNumber,
+    pairingCode: pairingCodeToSend,
+    message: `Pairing code generated for ${phoneNumber}`,
+  });
 });
 
+// Status endpoint
 app.get("/status", (req, res) => {
   const phoneNumber = req.query.number;
   if (!phoneNumber) return res.status(400).send("Missing number param");
