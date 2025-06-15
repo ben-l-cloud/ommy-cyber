@@ -1,58 +1,82 @@
-<!-- ✅ public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BEN - Whittaker Tech | Pair</title>
+  <title>Ben Whittaker Tech Bot</title>
   <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #0f0;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body, html {
+      height: 100%;
+      width: 100%;
+      font-family: Arial, sans-serif;
+    }
+
+    .background {
+      background: url("/cyber.png") no-repeat center center/cover;
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      z-index: -1;
+    }
+
+    .overlay {
+      height: 100%;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.6); /* darken effect */
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      padding-top: 50px;
+      flex-direction: column;
     }
-    input, button {
-      padding: 10px;
-      margin: 10px;
-      font-size: 1.1em;
+
+    h1, h3 {
+      color: #fff;
+      text-shadow: 1px 1px 5px #000;
     }
-    .code {
-      background: #000;
-      border: 1px solid #0f0;
-      padding: 10px;
+
+    form {
       margin-top: 20px;
-      word-break: break-all;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      width: 260px;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      margin-left: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #00cc66;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #00994d;
     }
   </style>
 </head>
 <body>
-  <h1>🧠 BEN - Whittaker Tech</h1>
-  <p>Enter your WhatsApp number to pair:</p>
-  <input id="number" placeholder="2557XXXXXXXX" />
-  <button onclick="getPair()">Get Pair Code</button>
-  <div class="code" id="result"></div>
-
-  <script>
-    async function getPair() {
-      const number = document.getElementById('number').value;
-      if (!number) return alert('Please enter your number!');
-      document.getElementById('result').innerText = '⏳ Please wait...';
-      try {
-        const res = await fetch(`/pair?number=${number}`);
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('result').innerText = `🔗 Pairing Code: ${data.pairingCode}`;
-        } else {
-          document.getElementById('result').innerText = `❌ Error: ${data.error}`;
-        }
-      } catch (err) {
-        document.getElementById('result').innerText = `❌ Request failed: ${err}`;
-      }
-    }
-  </script>
+  <div class="background"></div>
+  <div class="overlay">
+    <h1>🤖 Ben Whittaker Tech Bot</h1>
+    <h3>Ingiza Namba ya WhatsApp Kuunganishwa</h3>
+    <form method="POST" action="/pair">
+      <input type="text" name="number" placeholder="Mfano: 255712345678" required />
+      <button type="submit">Tengeneza Pairing Code</button>
+    </form>
+  </div>
 </body>
 </html>
