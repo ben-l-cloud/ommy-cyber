@@ -1,102 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ben Whittaker Tech Bot</title>
-  <style>
-    /* Same styles as before */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html { height: 100%; width: 100%; font-family: Arial, sans-serif; }
-    .background {
-      background: url("/cyber.png") no-repeat center center/cover;
-      height: 100%; width: 100%; position: absolute; z-index: -1;
-    }
-    .overlay {
-      height: 100%; width: 100%; background: rgba(0,0,0,0.6);
-      display: flex; justify-content: center; align-items: center;
-      flex-direction: column; padding: 20px;
-    }
-    h1, h3 { color: #fff; text-shadow: 1px 1px 5px #000; }
-    form { margin-top: 20px; }
-    input[type="text"] {
-      padding: 12px; font-size: 18px;
-      border: none; border-radius: 5px;
-      width: 260px;
-    }
-    button {
-      padding: 12px 24px; font-size: 18px; margin-left: 10px;
-      border: none; border-radius: 5px;
-      background-color: #00cc66; color: white; cursor: pointer;
-    }
-    button:hover { background-color: #00994d; }
-    #notification {
-      margin-top: 20px;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 1px 1px 8px #000;
-      min-height: 40px;
-    }
-    #qrCode {
-      margin-top: 30px;
-      max-width: 300px;
-      border: 3px solid #00cc66;
-      border-radius: 10px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ben Whittaker Tech Bot - Pairing</title>
+<style>
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  body, html {
+    height: 100%; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: url("/cyber.png") no-repeat center center/cover;
+    color: white;
+    text-shadow: 1px 1px 6px #000;
+  }
+  .overlay {
+    background: rgba(0, 0, 0, 0.65);
+    height: 100%; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px;
+    gap: 12px;
+  }
+  h1 {
+    font-weight: 700; font-size: 2.8rem; margin-bottom: 10px;
+  }
+  h3 {
+    font-weight: 600; font-size: 1.4rem;
+  }
+  input[type="text"] {
+    padding: 14px 16px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    border: none;
+    width: 320px;
+    max-width: 90vw;
+  }
+  button {
+    padding: 12px 24px;
+    font-size: 1.15rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.25s ease;
+    color: white;
+    min-width: 140px;
+  }
+  #btnPairCode {
+    background-color: #28a745;
+  }
+  #btnPairCode:hover {
+    background-color: #1e7e34;
+  }
+  #btnQRScan {
+    background-color: #007bff;
+  }
+  #btnQRScan:hover {
+    background-color: #0056b3;
+  }
+  #langToggle {
+    background-color: transparent;
+    border: 1.5px solid white;
+    color: white;
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+  }
+  #result, #qrCodeContainer {
+    margin-top: 24px;
+    background: rgba(255,255,255,0.15);
+    padding: 18px 20px;
+    border-radius: 12px;
+    max-width: 400px;
+    word-break: break-word;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+</style>
 </head>
 <body>
-  <div class="background"></div>
-  <div class="overlay">
-    <h1>🤖 Ben Whittaker Tech Bot</h1>
-    <h3>Ingiza Namba ya WhatsApp Kuunganishwa</h3>
 
-    <form id="pairForm">
-      <input type="text" name="number" placeholder="Mfano: 255760×××××××" required />
-      <button type="submit">Tengeneza Pairing Code</button>
-    </form>
+<button id="langToggle">SW</button>
 
-    <div id="notification"></div>
-    <img id="qrCode" src="" alt="WhatsApp QR Code" style="display:none;" />
+<div class="overlay">
+  <h1 id="title">🤖 Ben Whittaker Tech Bot</h1>
+  <h3 id="instruction">Enter WhatsApp Number to Connect</h3>
+  <input type="text" id="phoneNumber" placeholder="Example: 255760xxxxxxx" required />
+  <div>
+    <button id="btnPairCode">Show Pair Code</button>
+    <button id="btnQRScan">Show QR Scan</button>
   </div>
+  <div id="result"></div>
+  <div id="qrCodeContainer"></div>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+  const btnPairCode = document.getElementById("btnPairCode");
+  const btnQRScan = document.getElementById("btnQRScan");
+  const phoneNumberInput = document.getElementById("phoneNumber");
+  const resultDiv = document.getElementById("result");
+  const qrCodeContainer = document.getElementById("qrCodeContainer");
+  const langToggle = document.getElementById("langToggle");
 
-    const form = document.getElementById("pairForm");
-    const notification = document.getElementById("notification");
-    const qrCodeImg = document.getElementById("qrCode");
+  // Text content for EN and SW
+  const text = {
+    en: {
+      title: "🤖 Ben Whittaker Tech Bot",
+      instruction: "Enter WhatsApp Number to Connect",
+      placeholder: "Example: 255760xxxxxxx",
+      pairCodeBtn: "Show Pair Code",
+      qrScanBtn: "Show QR Scan",
+      invalidNumber: "⚠️ Please enter a valid number (10-15 digits).",
+      loadingPairCode: "⌛ Generating Pair Code...",
+      loadingQR: "⌛ Loading QR Scan...",
+      scanPrompt: "Please scan the QR below with your WhatsApp:",
+      error: "❌ Error: ",
+    },
+    sw: {
+      title: "🤖 Ben Whittaker Tech Bot",
+      instruction: "Weka Namba ya WhatsApp Kuunganishwa",
+      placeholder: "Mfano: 255760xxxxxxx",
+      pairCodeBtn: "Onyesha Pair Code",
+      qrScanBtn: "Onyesha QR Scan",
+      invalidNumber: "⚠️ Tafadhali ingiza namba halali (tarakimu 10-15).",
+      loadingPairCode: "⌛ Inatengeneza Pair Code...",
+      loadingQR: "⌛ Inapakia QR Scan...",
+      scanPrompt: "Tafadhali scan QR hapo chini kwenye WhatsApp yako:",
+      error: "❌ Hitilafu: ",
+    }
+  };
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      notification.textContent = "";
-      qrCodeImg.style.display = "none";
-      qrCodeImg.src = "";
+  let currentLang = "en";
 
-      const number = form.number.value.trim();
-      if (!number) {
-        notification.textContent = "Tafadhali ingiza namba ya WhatsApp.";
-        return;
-      }
+  // Function to switch language UI
+  function updateLanguage() {
+    const t = text[currentLang];
+    document.getElementById("title").innerText = t.title;
+    document.getElementById("instruction").innerText = t.instruction;
+    phoneNumberInput.placeholder = t.placeholder;
+    btnPairCode.innerText = t.pairCodeBtn;
+    btnQRScan.innerText = t.qrScanBtn;
+    resultDiv.innerText = "";
+    qrCodeContainer.innerHTML = "";
+    langToggle.innerText = currentLang === "en" ? "SW" : "EN";
+  }
 
-      notification.textContent = "🕐 Tunaandaa pairing...";
-      socket.emit("startPairing", number);
-    });
+  langToggle.addEventListener("click", () => {
+    currentLang = currentLang === "en" ? "sw" : "en";
+    updateLanguage();
+  });
 
-    socket.on("qr", (qrDataUrl) => {
-      qrCodeImg.src = qrDataUrl;
-      qrCodeImg.style.display = "block";
-    });
+  updateLanguage();
 
-    socket.on("pairingStatus", (msg) => {
-      notification.textContent = msg;
-    });
+  function clearOutputs() {
+    resultDiv.innerHTML = "";
+    qrCodeContainer.innerHTML = "";
+  }
 
-    socket.on("pairingError", (err) => {
-      notification.textContent = err;
-      qrCodeImg.style.display = "none";
-    });
-  </script>
+  // Validate phone number
+  function validNumber(num) {
+    return /^\d{10,15}$/.test(num);
+  }
+
+  // Show Pair Code
+  btnPairCode.addEventListener("click", async () => {
+    clearOutputs();
+    const number = phoneNumberInput.value.trim();
+    if (!validNumber(number)) {
+      resultDiv.innerText = text[currentLang].invalidNumber;
+      return;
+    }
+    try {
+      resultDiv.innerText = text[currentLang].loadingPairCode;
+      const res = await fetch("/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ number }),
+      });
+      const html = await res.text();
+      resultDiv.innerHTML = html;
+    } catch (error) {
+      resultDiv.innerText = text[currentLang].error + error.message;
+    }
+  });
+
+  // Show QR Scan
+  btnQRScan.addEventListener("click", async () => {
+    clearOutputs();
+    const number = phoneNumberInput.value.trim();
+    if (!validNumber(number)) {
+      resultDiv.innerText = text[currentLang].invalidNumber;
+      return;
+    }
+    resultDiv.innerText = text[currentLang].loadingQR;
+    try {
+      const res = await fetch(`/qr?number=${number}`);
+      if (!res.ok) throw new Error("Server did not return QR code.");
+      const data = await res.json();
+      resultDiv.innerText = text[currentLang].scanPrompt;
+      QRCode.toCanvas(qrCodeContainer, data.qr, { width: 300 }, (err) => {
+        if (err) {
+          resultDiv.innerText = text[currentLang].error + err.message;
+          qrCodeContainer.innerHTML = "";
+        }
+      });
+    } catch (error) {
+      resultDiv.innerText = text[currentLang].error + error.message;
+    }
+  });
+</script>
 </body>
 </html>
