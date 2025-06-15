@@ -1,127 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ben Whittaker Tech Bot</title>
+  <meta charset="UTF-8">
+  <title>BEN - Whittaker Tech Pairing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    * {
+      box-sizing: border-box;
       font-family: Arial, sans-serif;
-      background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
-      color: #fff;
+    }
+
+    body, html {
+      height: 100%;
+      margin: 0;
+      background: url("cyber.png") no-repeat center center fixed;
+      background-size: cover;
+      color: white;
       display: flex;
-      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      flex-direction: column;
       padding: 20px;
-      min-height: 100vh;
+      text-shadow: 1px 1px 5px black;
     }
 
     h1 {
-      margin-top: 20px;
-      font-size: 32px;
-    }
-
-    .form {
-      margin: 30px 0;
-    }
-
-    input {
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      width: 250px;
-    }
-
-    button {
-      padding: 12px 20px;
-      margin: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      background: #00cc66;
-      color: #fff;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #00994d;
-    }
-
-    .status, .qr-section, .code-section {
-      margin-top: 20px;
+      font-size: 36px;
+      margin-bottom: 10px;
       text-align: center;
     }
 
-    #qrImage {
-      max-width: 300px;
-      margin-top: 10px;
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
     }
 
-    .code-section h2 {
-      font-size: 24px;
-      color: #00ffcc;
+    input {
+      width: 220px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    #qrCode {
+      margin-top: 20px;
+      max-width: 300px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
   </style>
 </head>
 <body>
-  <h1>🤖 Ben Whittaker Tech Bot</h1>
-  <form class="form" id="pairForm">
-    <input type="text" id="numberInput" placeholder="Enter WhatsApp Number (e.g. 2557xxxxxxx)" required />
-    <div>
-      <button type="button" onclick="startPair('qr')">📸 Scan QR Code</button>
-      <button type="button" onclick="startPair('code')">🔐 Get Pairing Code</button>
-    </div>
-  </form>
+  <h1>🤖 BEN - Whittaker Tech Bot Pairing</h1>
 
-  <div class="status" id="status"></div>
-  <div class="qr-section" id="qrSection" style="display: none;">
-    <img id="qrImage" src="" alt="QR Code"/>
+  <input type="text" id="phoneNumber" placeholder="Enter your phone number" />
+  
+  <div class="btn-group">
+    <button onclick="startPair('qr')">📸 Pair via QR Code</button>
+    <button onclick="startPair('code')">🔐 Pair via Pairing Code</button>
   </div>
-  <div class="code-section" id="codeSection" style="display: none;">
-    <h2 id="pairCode">Pairing Code</h2>
-  </div>
+
+  <div id="output">Status: Waiting...</div>
+
+  <img id="qrCode" src="" alt="" style="display:none;" />
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const statusDiv = document.getElementById("status");
-    const qrSection = document.getElementById("qrSection");
-    const qrImage = document.getElementById("qrImage");
-    const codeSection = document.getElementById("codeSection");
-    const pairCodeText = document.getElementById("pairCode");
+    const output = document.getElementById("output");
+    const qrImg = document.getElementById("qrCode");
 
-    function startPair(type) {
-      const number = document.getElementById("numberInput").value.trim();
-      if (!number.match(/^\d{9,15}$/)) {
-        alert("⚠️ Enter a valid phone number (9-15 digits).");
-        return;
-      }
+    function startPair(method) {
+      const number = document.getElementById("phoneNumber").value.trim();
+      if (!number) return alert("Please enter your phone number.");
 
-      // Reset
-      qrSection.style.display = "none";
-      codeSection.style.display = "none";
-      statusDiv.innerText = "⏳ Connecting...";
+      qrImg.style.display = "none";
+      qrImg.src = "";
 
-      socket.emit("startPairing", { number, method: type });
+      socket.emit("startPairing", { number, method });
+      output.innerText = "🔄 Connecting...";
     }
 
     socket.on("status", (msg) => {
-      statusDiv.innerText = msg;
-    });
-
-    socket.on("qr", (qrUrl) => {
-      qrImage.src = qrUrl;
-      qrSection.style.display = "block";
-    });
-
-    socket.on("pairCode", (code) => {
-      pairCodeText.innerText = code;
-      codeSection.style.display = "block";
+      output.innerText = "ℹ️ " + msg;
     });
 
     socket.on("error", (msg) => {
-      statusDiv.innerText = `❌ ${msg}`;
+      output.innerText = "❌ " + msg;
+    });
+
+    socket.on("qr", (dataUrl) => {
+      qrImg.src = dataUrl;
+      qrImg.style.display = "block";
+    });
+
+    socket.on("pairCode", (code) => {
+      output.innerText = `🔐 Pairing Code: ${code}\n\nGo to WhatsApp > Link Device and enter this code.`;
     });
   </script>
 </body>
