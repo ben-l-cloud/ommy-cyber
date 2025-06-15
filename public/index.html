@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ben Whittaker Tech Bot - Pairing</title>
 <style>
-  * {
-    margin: 0; padding: 0; box-sizing: border-box;
-  }
+  * { margin:0; padding:0; box-sizing: border-box; }
   body, html {
     height: 100%; width: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: url("/cyber.png") no-repeat center center/cover;
@@ -15,18 +13,14 @@
     text-shadow: 1px 1px 6px #000;
   }
   .overlay {
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0,0,0,0.65);
     height: 100%; width: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 20px;
     gap: 12px;
   }
-  h1 {
-    font-weight: 700; font-size: 2.8rem; margin-bottom: 10px;
-  }
-  h3 {
-    font-weight: 600; font-size: 1.4rem;
-  }
+  h1 { font-weight: 700; font-size: 2.8rem; margin-bottom: 10px; }
+  h3 { font-weight: 600; font-size: 1.4rem; }
   input[type="text"] {
     padding: 14px 16px;
     font-size: 1.2rem;
@@ -79,6 +73,11 @@
     text-align: center;
     font-size: 1.1rem;
   }
+  #qrCodeContainer img {
+    max-width: 300px;
+    margin: auto;
+    display: block;
+  }
 </style>
 </head>
 <body>
@@ -97,8 +96,10 @@
   <div id="qrCodeContainer"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
+  const socket = io();
+
   const btnPairCode = document.getElementById("btnPairCode");
   const btnQRScan = document.getElementById("btnQRScan");
   const phoneNumberInput = document.getElementById("phoneNumber");
@@ -106,7 +107,6 @@
   const qrCodeContainer = document.getElementById("qrCodeContainer");
   const langToggle = document.getElementById("langToggle");
 
-  // Text content for EN and SW
   const text = {
     en: {
       title: "🤖 Ben Whittaker Tech Bot",
@@ -114,11 +114,12 @@
       placeholder: "Example: 255760xxxxxxx",
       pairCodeBtn: "Show Pair Code",
       qrScanBtn: "Show QR Scan",
-      invalidNumber: "⚠️ Please enter a valid number (10-15 digits).",
-      loadingPairCode: "⌛ Generating Pair Code...",
-      loadingQR: "⌛ Loading QR Scan...",
-      scanPrompt: "Please scan the QR below with your WhatsApp:",
+      invalidNumber: "⚠️ Please enter a valid number (9-15 digits).",
+      waiting: "⌛ Please wait...",
+      scanPrompt: "Please scan the QR code below with your WhatsApp:",
+      connected: "✅ WhatsApp connected successfully!",
       error: "❌ Error: ",
+      alreadyPaired: "You are already connected.",
     },
     sw: {
       title: "🤖 Ben Whittaker Tech Bot",
@@ -126,17 +127,17 @@
       placeholder: "Mfano: 255760xxxxxxx",
       pairCodeBtn: "Onyesha Pair Code",
       qrScanBtn: "Onyesha QR Scan",
-      invalidNumber: "⚠️ Tafadhali ingiza namba halali (tarakimu 10-15).",
-      loadingPairCode: "⌛ Inatengeneza Pair Code...",
-      loadingQR: "⌛ Inapakia QR Scan...",
-      scanPrompt: "Tafadhali scan QR hapo chini kwenye WhatsApp yako:",
+      invalidNumber: "⚠️ Tafadhali ingiza namba halali (tarakimu 9-15).",
+      waiting: "⌛ Tafadhali subiri...",
+      scanPrompt: "Tafadhali scan QR code hapo chini kwenye WhatsApp yako:",
+      connected: "✅ WhatsApp imeunganishwa kwa mafanikio!",
       error: "❌ Hitilafu: ",
+      alreadyPaired: "Umeunganishwa tayari.",
     }
   };
 
   let currentLang = "en";
 
-  // Function to switch language UI
   function updateLanguage() {
     const t = text[currentLang];
     document.getElementById("title").innerText = t.title;
@@ -161,57 +162,49 @@
     qrCodeContainer.innerHTML = "";
   }
 
-  // Validate phone number
   function validNumber(num) {
-    return /^\d{10,15}$/.test(num);
+    return /^\d{9,15}$/.test(num);
   }
 
-  // Show Pair Code
-  btnPairCode.addEventListener("click", async () => {
+  btnPairCode.addEventListener("click", () => {
     clearOutputs();
     const number = phoneNumberInput.value.trim();
     if (!validNumber(number)) {
       resultDiv.innerText = text[currentLang].invalidNumber;
       return;
     }
-    try {
-      resultDiv.innerText = text[currentLang].loadingPairCode;
-      const res = await fetch("/pair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number }),
-      });
-      const html = await res.text();
-      resultDiv.innerHTML = html;
-    } catch (error) {
-      resultDiv.innerText = text[currentLang].error + error.message;
+    resultDiv.innerText = text[currentLang].waiting;
+    socket.emit("startPairing", number);
+  });
+
+  btnQRScan.addEventListener("click", () => {
+    clearOutputs();
+    const number = phoneNumberInput.value.trim();
+    if (!validNumber(number)) {
+      resultDiv.innerText = text[currentLang].invalidNumber;
+      return;
+    }
+    resultDiv.innerText = text[currentLang].waiting;
+    socket.emit("startPairing", number);
+  });
+
+  socket.on("qr", (qrDataUrl) => {
+    resultDiv.innerText = text[currentLang].scanPrompt;
+    qrCodeContainer.innerHTML = `<img src="${qrDataUrl}" alt="QR Code" />`;
+  });
+
+  socket.on("pairingStatus", (msg) => {
+    resultDiv.innerText = msg;
+    if (msg.includes("✅") || msg.includes("imeunganishwa")) {
+      qrCodeContainer.innerHTML = "";
     }
   });
 
-  // Show QR Scan
-  btnQRScan.addEventListener("click", async () => {
-    clearOutputs();
-    const number = phoneNumberInput.value.trim();
-    if (!validNumber(number)) {
-      resultDiv.innerText = text[currentLang].invalidNumber;
-      return;
-    }
-    resultDiv.innerText = text[currentLang].loadingQR;
-    try {
-      const res = await fetch(`/qr?number=${number}`);
-      if (!res.ok) throw new Error("Server did not return QR code.");
-      const data = await res.json();
-      resultDiv.innerText = text[currentLang].scanPrompt;
-      QRCode.toCanvas(qrCodeContainer, data.qr, { width: 300 }, (err) => {
-        if (err) {
-          resultDiv.innerText = text[currentLang].error + err.message;
-          qrCodeContainer.innerHTML = "";
-        }
-      });
-    } catch (error) {
-      resultDiv.innerText = text[currentLang].error + error.message;
-    }
+  socket.on("pairingError", (errMsg) => {
+    resultDiv.innerText = text[currentLang].error + errMsg;
+    qrCodeContainer.innerHTML = "";
   });
+
 </script>
 </body>
 </html>
