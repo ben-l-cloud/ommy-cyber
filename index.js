@@ -1,74 +1,83 @@
 require("dotenv").config();
 const fs = require("fs-extra");
+const path = require("path");
 const express = require("express");
 const {
   default: makeWASocket,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion,
   generatePairingCode,
+  fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 
 const app = express();
-app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
+app.use(express.json());
+
 app.get("/", (req, res) => {
-  res.send("✅ BEN - Whittaker Tech Pairing Bot is running!");
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.get("/pair", async (req, res) => {
-  const phoneNumber = req.query.number;
-  console.log("➡️ Request /pair na namba:", phoneNumber);
-
-  // Hakikisha namba ipo na sahihi
+app.post("/pair", async (req, res) => {
+  const phoneNumber = req.body.number;
   if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
-    return res.status(400).json({ success: false, error: "Namba si sahihi." });
+    return res.send("⚠️ Namba si sahihi.");
   }
 
+  const authFolder = path.resolve(`./auth/${phoneNumber}`);
+  await fs.ensureDir(authFolder);
+  const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+  const { version } = await fetchLatestBaileysVersion();
+
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    printQRInTerminal: false,
+    getMessage: async () => ({ conversation: "🟢 Umeunganishwa!" }),
+  });
+
   try {
-    // Tengeneza folder ya kuhifadhi session
-    const authFolder = `./auth/${phoneNumber}`;
-    fs.ensureDirSync(authFolder);
+    const jid = `${phoneNumber}@s.whatsapp.net`;
+    const code = await generatePairingCode(sock, phoneNumber);
+    console.log(`🔗 Pairing code for ${phoneNumber}: ${code}`);
 
-    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-    const { version } = await fetchLatestBaileysVersion();
+    sock.ev.on("connection.update", async (update) => {
+      const { connection } = update;
 
-    // Tengeneza WhatsApp socket
-    const sock = makeWASocket({
-      version,
-      auth: state,
-      printQRInTerminal: false,
-      syncFullHistory: false,
-      getMessage: async () => ({ conversation: "🟢 Message placeholder." }),
-    });
-
-    sock.ev.on("connection.update", async ({ connection }) => {
       if (connection === "open") {
         console.log("✅ Connection open!");
+
+        // Send all session .json files to the user
+        const files = await fs.readdir(authFolder);
+        for (const file of files) {
+          if (file.endsWith(".json")) {
+            const content = await fs.readFile(path.join(authFolder, file));
+            await sock.sendMessage(jid, {
+              document: content,
+              mimetype: "application/json",
+              fileName: file,
+              caption: "📦 Session ID ya bot yako. Tumia hii kudeploy.",
+            });
+          }
+        }
+
         await saveCreds();
       }
     });
 
-    // Tumia generatePairingCode kwa namba mpya
-    const pairingCode = await generatePairingCode(sock, phoneNumber);
-    console.log("🔗 Pairing Code:", pairingCode);
-
-    return res.json({
-      success: true,
-      phoneNumber,
-      pairingCode,
-    });
-
+    return res.send(`
+      <h2>✅ Weka Code hii kwenye WhatsApp yako:</h2>
+      <h1 style="font-size: 50px; color: green;">${code}</h1>
+      <p>Ingia WhatsApp > Linked Devices > Link a Device > Weka Code hii</p>
+    `);
   } catch (err) {
-    console.error("❌ Pairing failed:", err);
-    return res.status(500).json({
-      success: false,
-      error: `Pairing failed: ${err}`,
-    });
+    console.log("❌ Pairing failed:", err);
+    return res.send("❌ Pairing failed: " + err.message);
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 BEN - Whittaker Bot pairing server is running on http://localhost:${PORT}`);
 });
