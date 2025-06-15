@@ -1,122 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>BEN - Whittaker Tech Pairing</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Ben Whittaker Bot Pairing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
-
-    body, html {
-      height: 100%;
+    body {
       margin: 0;
+      padding: 0;
       background: url("cyber.png") no-repeat center center fixed;
       background-size: cover;
-      color: white;
+      font-family: Arial, sans-serif;
       display: flex;
-      align-items: center;
       justify-content: center;
-      flex-direction: column;
-      padding: 20px;
-      text-shadow: 1px 1px 5px black;
+      align-items: center;
+      height: 100vh;
+      color: white;
     }
-
-    h1 {
-      font-size: 36px;
-      margin-bottom: 10px;
+    .container {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 30px;
+      border-radius: 10px;
       text-align: center;
     }
-
     input, button {
       padding: 10px;
       margin: 10px;
-      border-radius: 6px;
       border: none;
+      border-radius: 5px;
       font-size: 16px;
     }
-
-    input {
-      width: 220px;
-    }
-
-    button {
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    #output {
-      margin-top: 20px;
-      padding: 10px;
-      background: rgba(0,0,0,0.5);
-      border-radius: 8px;
-      text-align: center;
-    }
-
     #qrCode {
       margin-top: 20px;
+      display: none;
       max-width: 300px;
       background: white;
+      border-radius: 10px;
       padding: 10px;
-      border-radius: 8px;
     }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
+    #status {
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>🤖 BEN - Whittaker Tech Bot Pairing</h1>
-
-  <input type="text" id="phoneNumber" placeholder="Enter your phone number" />
-  
-  <div class="btn-group">
-    <button onclick="startPair('qr')">📸 Pair via QR Code</button>
-    <button onclick="startPair('code')">🔐 Pair via Pairing Code</button>
+  <div class="container">
+    <h2>🤖 Pair Your WhatsApp Bot</h2>
+    <input id="phone" type="text" placeholder="Enter your phone number" />
+    <br/>
+    <button onclick="start('qr')">📸 Use QR Code</button>
+    <button onclick="start('code')">🔐 Use Pair Code</button>
+    <p id="status">Waiting...</p>
+    <img id="qrCode" src="" />
   </div>
-
-  <div id="output">Status: Waiting...</div>
-
-  <img id="qrCode" src="" alt="" style="display:none;" />
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const output = document.getElementById("output");
-    const qrImg = document.getElementById("qrCode");
+    const phone = document.getElementById("phone");
+    const status = document.getElementById("status");
+    const qrCode = document.getElementById("qrCode");
 
-    function startPair(method) {
-      const number = document.getElementById("phoneNumber").value.trim();
+    function start(method) {
+      const number = phone.value.trim();
       if (!number) return alert("Please enter your phone number.");
-
-      qrImg.style.display = "none";
-      qrImg.src = "";
-
+      qrCode.style.display = "none";
       socket.emit("startPairing", { number, method });
-      output.innerText = "🔄 Connecting...";
     }
 
     socket.on("status", (msg) => {
-      output.innerText = "ℹ️ " + msg;
+      status.innerText = msg;
     });
 
     socket.on("error", (msg) => {
-      output.innerText = "❌ " + msg;
+      status.innerText = "❌ " + msg;
     });
 
     socket.on("qr", (dataUrl) => {
-      qrImg.src = dataUrl;
-      qrImg.style.display = "block";
+      qrCode.src = dataUrl;
+      qrCode.style.display = "block";
     });
 
     socket.on("pairCode", (code) => {
-      output.innerText = `🔐 Pairing Code: ${code}\n\nGo to WhatsApp > Link Device and enter this code.`;
+      status.innerText = `🔐 Pairing Code: ${code}`;
     });
   </script>
 </body>
