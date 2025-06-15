@@ -37,30 +37,29 @@ app.post("/pair", async (req, res) => {
     getMessage: async () => ({ conversation: "🟢 Umeunganishwa!" }),
   });
 
-  const waitForPairingCode = () => {
-    return new Promise((resolve, reject) => {
-      sock.ev.on("connection.update", ({ pairingCode }) => {
-        if (pairingCode) {
-          console.log(`🔗 Pairing code: ${pairingCode}`);
-          resolve(pairingCode);
-        }
-      });
-
-      setTimeout(() => reject(new Error("Timeout: Pairing code haikupatikana.")), 20000);
-    });
-  };
-
   try {
-    const code = await waitForPairingCode();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("⏰ Timeout: Pairing code haikupatikana ndani ya dakika 1.")), 60000);
+    });
 
+    // Subiri pairing code (dakika 1 max)
+    const code = await Promise.race([
+      sock.requestPairingCode(phoneNumber),
+      timeoutPromise
+    ]);
+
+    console.log(`🔗 Pairing code for ${phoneNumber}: ${code}`);
+
+    // Sikiliza connection update
     sock.ev.on("connection.update", async (update) => {
       const { connection } = update;
 
       if (connection === "open") {
-        console.log("✅ Connection open!");
+        console.log("✅ WhatsApp imeunganishwa!");
+
         const jid = sock.user.id;
 
-        // Tuma session files
+        // Tuma mafaili ya session
         const files = await fs.readdir(authFolder);
         for (const file of files) {
           if (file.endsWith(".json")) {
