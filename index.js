@@ -1,12 +1,15 @@
 require("dotenv").config();
-const express = require("express");
 const fs = require("fs-extra");
-const path = require("path");
-const bot = require("./ommy");
+const express = require("express");
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  generatePairingCode,
+} = require("@whiskeysockets/baileys");
 
 const app = express();
 app.use(express.json());
-app.use(express.static("public"));
 
 const PORT = process.env.PORT || 3000;
 
@@ -18,20 +21,48 @@ app.get("/pair", async (req, res) => {
   const phoneNumber = req.query.number;
   console.log("➡️ Request /pair na namba:", phoneNumber);
 
+  // Hakikisha namba ipo na sahihi
   if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
     return res.status(400).json({ success: false, error: "Namba si sahihi." });
   }
 
   try {
-    const pairingCode = await bot.startBot(phoneNumber);
-    res.json({
+    // Tengeneza folder ya kuhifadhi session
+    const authFolder = `./auth/${phoneNumber}`;
+    fs.ensureDirSync(authFolder);
+
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    const { version } = await fetchLatestBaileysVersion();
+
+    // Tengeneza WhatsApp socket
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      syncFullHistory: false,
+      getMessage: async () => ({ conversation: "🟢 Message placeholder." }),
+    });
+
+    sock.ev.on("connection.update", async ({ connection }) => {
+      if (connection === "open") {
+        console.log("✅ Connection open!");
+        await saveCreds();
+      }
+    });
+
+    // Tumia generatePairingCode kwa namba mpya
+    const pairingCode = await generatePairingCode(sock, phoneNumber);
+    console.log("🔗 Pairing Code:", pairingCode);
+
+    return res.json({
       success: true,
       phoneNumber,
       pairingCode,
     });
+
   } catch (err) {
     console.error("❌ Pairing failed:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: `Pairing failed: ${err}`,
     });
