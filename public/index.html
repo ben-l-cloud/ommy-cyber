@@ -2,69 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ben Whittaker Tech Bot</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body, html {
-      height: 100%;
-      width: 100%;
-      font-family: Arial, sans-serif;
-    }
-
+    /* Same styles as before */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { height: 100%; width: 100%; font-family: Arial, sans-serif; }
     .background {
       background: url("/cyber.png") no-repeat center center/cover;
-      height: 100%;
-      width: 100%;
-      position: absolute;
-      z-index: -1;
+      height: 100%; width: 100%; position: absolute; z-index: -1;
     }
-
     .overlay {
-      height: 100%;
-      width: 100%;
-      background: rgba(0, 0, 0, 0.6); /* darken effect */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
+      height: 100%; width: 100%; background: rgba(0,0,0,0.6);
+      display: flex; justify-content: center; align-items: center;
+      flex-direction: column; padding: 20px;
     }
-
-    h1, h3 {
-      color: #fff;
-      text-shadow: 1px 1px 5px #000;
-    }
-
-    form {
-      margin-top: 20px;
-    }
-
+    h1, h3 { color: #fff; text-shadow: 1px 1px 5px #000; }
+    form { margin-top: 20px; }
     input[type="text"] {
-      padding: 12px;
-      font-size: 18px;
-      border: none;
-      border-radius: 5px;
+      padding: 12px; font-size: 18px;
+      border: none; border-radius: 5px;
       width: 260px;
     }
-
     button {
-      padding: 12px 24px;
-      font-size: 18px;
-      margin-left: 10px;
-      border: none;
-      border-radius: 5px;
-      background-color: #00cc66;
-      color: white;
-      cursor: pointer;
+      padding: 12px 24px; font-size: 18px; margin-left: 10px;
+      border: none; border-radius: 5px;
+      background-color: #00cc66; color: white; cursor: pointer;
     }
-
-    button:hover {
-      background-color: #00994d;
+    button:hover { background-color: #00994d; }
+    #notification {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 1px 1px 8px #000;
+      min-height: 40px;
+    }
+    #qrCode {
+      margin-top: 30px;
+      max-width: 300px;
+      border: 3px solid #00cc66;
+      border-radius: 10px;
     }
   </style>
 </head>
@@ -73,10 +50,53 @@
   <div class="overlay">
     <h1>🤖 Ben Whittaker Tech Bot</h1>
     <h3>Ingiza Namba ya WhatsApp Kuunganishwa</h3>
-    <form method="POST" action="/pair">
+
+    <form id="pairForm">
       <input type="text" name="number" placeholder="Mfano: 255760×××××××" required />
       <button type="submit">Tengeneza Pairing Code</button>
     </form>
+
+    <div id="notification"></div>
+    <img id="qrCode" src="" alt="WhatsApp QR Code" style="display:none;" />
   </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const form = document.getElementById("pairForm");
+    const notification = document.getElementById("notification");
+    const qrCodeImg = document.getElementById("qrCode");
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      notification.textContent = "";
+      qrCodeImg.style.display = "none";
+      qrCodeImg.src = "";
+
+      const number = form.number.value.trim();
+      if (!number) {
+        notification.textContent = "Tafadhali ingiza namba ya WhatsApp.";
+        return;
+      }
+
+      notification.textContent = "🕐 Tunaandaa pairing...";
+      socket.emit("startPairing", number);
+    });
+
+    socket.on("qr", (qrDataUrl) => {
+      qrCodeImg.src = qrDataUrl;
+      qrCodeImg.style.display = "block";
+    });
+
+    socket.on("pairingStatus", (msg) => {
+      notification.textContent = msg;
+    });
+
+    socket.on("pairingError", (err) => {
+      notification.textContent = err;
+      qrCodeImg.style.display = "none";
+    });
+  </script>
 </body>
 </html>
