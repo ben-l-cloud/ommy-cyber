@@ -5,7 +5,6 @@ const express = require("express");
 const {
   default: makeWASocket,
   useMultiFileAuthState,
-  generatePairingCode,
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 
@@ -28,6 +27,7 @@ app.post("/pair", async (req, res) => {
 
   const authFolder = path.resolve(`./auth/${phoneNumber}`);
   await fs.ensureDir(authFolder);
+
   const { state, saveCreds } = await useMultiFileAuthState(authFolder);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -38,42 +38,60 @@ app.post("/pair", async (req, res) => {
     getMessage: async () => ({ conversation: "🟢 Umeunganishwa!" }),
   });
 
-  try {
-    const jid = `${phoneNumber}@s.whatsapp.net`;
-    const code = await generatePairingCode(sock, phoneNumber);
-    console.log(`🔗 Pairing code for ${phoneNumber}: ${code}`);
+  let pairingCode = null;
+  const jid = `${phoneNumber}@s.whatsapp.net`;
 
-    sock.ev.on("connection.update", async (update) => {
-      const { connection } = update;
+  sock.ev.on("connection.update", async (update) => {
+    const { connection, pairingCode: code } = update;
 
-      if (connection === "open") {
-        console.log("✅ Connection open!");
+    if (code) {
+      pairingCode = code;
+      console.log(`🔗 Pairing code: ${code}`);
+    }
 
-        // Send all session .json files to the user
-        const files = await fs.readdir(authFolder);
-        for (const file of files) {
-          if (file.endsWith(".json")) {
-            const content = await fs.readFile(path.join(authFolder, file));
-            await sock.sendMessage(jid, {
-              document: content,
-              mimetype: "application/json",
-              fileName: file,
-              caption: "📦 Session ID ya bot yako. Tumia hii kudeploy.",
-            });
-          }
+    if (connection === "open") {
+      console.log("✅ Connected!");
+
+      const files = await fs.readdir(authFolder);
+      for (const file of files) {
+        if (file.endsWith(".json")) {
+          const content = await fs.readFile(path.join(authFolder, file));
+          await sock.sendMessage(jid, {
+            document: content,
+            mimetype: "application/json",
+            fileName: file,
+            caption: "📦 Hii ndio session ID yako. Tumia kudeploy bot yako 💻",
+          });
         }
-
-        await saveCreds();
       }
+
+      await saveCreds();
+    }
+  });
+
+  // Kungojea pairing code mpaka ipatikane
+  try {
+    await new Promise((resolve, reject) => {
+      let tries = 0;
+      const check = setInterval(() => {
+        if (pairingCode) {
+          clearInterval(check);
+          resolve();
+        }
+        if (++tries > 50) {
+          clearInterval(check);
+          reject(new Error("Timeout: Pairing code haikupatikana."));
+        }
+      }, 300);
     });
 
     return res.send(`
       <h2>✅ Weka Code hii kwenye WhatsApp yako:</h2>
-      <h1 style="font-size: 50px; color: green;">${code}</h1>
+      <h1 style="font-size: 50px; color: green;">${pairingCode}</h1>
       <p>Ingia WhatsApp > Linked Devices > Link a Device > Weka Code hii</p>
     `);
   } catch (err) {
-    console.log("❌ Pairing failed:", err);
+    console.log("❌ Pairing failed:", err.message);
     return res.send("❌ Pairing failed: " + err.message);
   }
 });
