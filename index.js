@@ -1,93 +1,116 @@
-require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const fs = require("fs-extra");
 const path = require("path");
-const express = require("express");
+const qrcode = require("qrcode");
 const {
   default: makeWASocket,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 
+require("dotenv").config();
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
 app.use(express.json());
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.post("/pair", async (req, res) => {
-  const phoneNumber = req.body.number;
-  if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
-    return res.send("⚠️ Namba si sahihi.");
-  }
+// Map ya kufuatilia sessions (number -> sock instance)
+const sessions = new Map();
 
-  const authFolder = path.resolve(`./auth/${phoneNumber}`);
-  await fs.ensureDir(authFolder);
-  const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-  const { version } = await fetchLatestBaileysVersion();
+io.on("connection", (socket) => {
+  console.log("👤 Client connected:", socket.id);
 
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: false,
-    getMessage: async () => ({ conversation: "🟢 Umeunganishwa!" }),
-  });
+  socket.on("startPairing", async (phoneNumber) => {
+    if (!phoneNumber || !/^\d{9,15}$/.test(phoneNumber)) {
+      socket.emit("pairingError", "Namba si sahihi. Ingiza namba yenye digits 9-15.");
+      return;
+    }
 
-  try {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("⏰ Timeout: Pairing code haikupatikana ndani ya dakika 1.")), 60000);
-    });
+    if (sessions.has(phoneNumber)) {
+      // Ikiwa session iko tayari, sema pairing imeshafanyika
+      socket.emit("pairingStatus", "Umeweza kuunganisha tayari.");
+      return;
+    }
 
-    // Subiri pairing code (dakika 1 max)
-    const code = await Promise.race([
-      sock.requestPairingCode(phoneNumber),
-      timeoutPromise
-    ]);
+    try {
+      const authFolder = path.resolve(`./auth/${phoneNumber}`);
+      await fs.ensureDir(authFolder);
+      const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+      const { version } = await fetchLatestBaileysVersion();
 
-    console.log(`🔗 Pairing code for ${phoneNumber}: ${code}`);
+      const sock = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        getMessage: async () => ({ conversation: "🟢 Umeunganishwa!" }),
+      });
 
-    // Sikiliza connection update
-    sock.ev.on("connection.update", async (update) => {
-      const { connection } = update;
+      sessions.set(phoneNumber, sock);
 
-      if (connection === "open") {
-        console.log("✅ WhatsApp imeunganishwa!");
+      // Timeout pairing code 1 min
+      const timeout = setTimeout(() => {
+        socket.emit("pairingError", "⏰ Timeout: Pairing code haikupatikana ndani ya dakika 1.");
+        sock.ws.close();
+        sessions.delete(phoneNumber);
+      }, 60000);
 
-        const jid = sock.user.id;
+      sock.ev.on("connection.update", async (update) => {
+        const { connection, qr, lastDisconnect } = update;
 
-        // Tuma mafaili ya session
-        const files = await fs.readdir(authFolder);
-        for (const file of files) {
-          if (file.endsWith(".json")) {
-            const content = await fs.readFile(path.join(authFolder, file));
-            await sock.sendMessage(jid, {
-              document: content,
-              mimetype: "application/json",
-              fileName: file,
-              caption: "📦 Session ID ya bot yako. Tumia hii kudeploy.",
-            });
-          }
+        if (qr) {
+          clearTimeout(timeout);
+          const qrDataUrl = await qrcode.toDataURL(qr);
+          socket.emit("qr", qrDataUrl);
+          socket.emit("pairingStatus", "Tafadhali scan QR code kwa WhatsApp yako.");
         }
 
-        await saveCreds();
-      }
-    });
+        if (connection === "open") {
+          clearTimeout(timeout);
+          socket.emit("pairingStatus", "✅ WhatsApp imeunganishwa!");
 
-    return res.send(`
-      <h2>✅ Weka Code hii kwenye WhatsApp yako:</h2>
-      <h1 style="font-size: 50px; color: green;">${code}</h1>
-      <p>Ingia WhatsApp > Linked Devices > Link a Device > Weka Code hii</p>
-    `);
-  } catch (err) {
-    console.log("❌ Pairing failed:", err);
-    return res.send("❌ Pairing failed: " + err.message);
-  }
+          await saveCreds();
+
+          // Optionally send session files or do other logic here
+
+          // session complete, we can keep socket or close connection based on your need
+        }
+
+        if (connection === "close") {
+          clearTimeout(timeout);
+
+          let reason = "Pairing imekatika kwa sababu isiyojulikana.";
+          if (lastDisconnect?.error?.output?.statusCode === 401) {
+            reason = "❌ Session imeisha au namba si sahihi.";
+          }
+
+          socket.emit("pairingError", reason);
+          sessions.delete(phoneNumber);
+        }
+      });
+
+      sock.ev.on("creds.update", saveCreds);
+    } catch (err) {
+      socket.emit("pairingError", `Error: ${err.message}`);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("👤 Client disconnected:", socket.id);
+  });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 BEN - Whittaker Tech Bot is running on http://localhost:${PORT}`);
 });
