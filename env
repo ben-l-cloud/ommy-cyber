@@ -5,7 +5,7 @@ HOST=0.0.0.0
 # --- WhatsApp Bot Settings ---
 OWNER_NUMBER=2557XXXXXXX
 SESSION_ID_BASE64=
-
+PREFIX=#
 # --- Bot Features Toggles (on/off) ---
 AUTO_SEEN=on               # Automatically mark incoming messages as read
 AUTO_REPLY=off             # Automatically reply to messages
