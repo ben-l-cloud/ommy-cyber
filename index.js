@@ -9,7 +9,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  makeInMemoryStore
 } = require("@whiskeysockets/baileys");
 
 dotenv.config();
@@ -22,19 +21,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
-// Homepage
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-// Optional fallback routes
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/qr", (req, res) => res.redirect("/"));
 app.get("/pair", (req, res) => res.redirect("/"));
 
 const sessions = new Map();
 const plugins = new Map();
 
-// 🔁 Load plugins
+// Load plugins
 const pluginPath = path.join(__dirname, "plugins");
 if (fs.existsSync(pluginPath)) {
   fs.readdirSync(pluginPath).forEach(file => {
@@ -75,7 +69,7 @@ io.on("connection", (socket) => {
         getMessage: async () => ({ conversation: "✅ Bot Ready" }),
       });
 
-      // Auto presence
+      // Presence control
       if (process.env.AUTO_TYPING === "on") sock.sendPresenceUpdate("composing");
       if (process.env.AUTO_RECORD === "on") sock.sendPresenceUpdate("recording");
       if (process.env.AUTO_AVAILABLE === "on") sock.sendPresenceUpdate("available");
@@ -108,9 +102,26 @@ io.on("connection", (socket) => {
 
           const sessionId = Buffer.from(authPath).toString("base64");
           const jid = `${number}@s.whatsapp.net`;
+
+          // Step 1: Tuma Session ID tu
           await sock.sendMessage(jid, {
-            text: `✅ Bot Connected!\n\n🪪 *Session ID*:\n\`\`\`${sessionId}\`\`\`\nUse this for deployment.`
+            text: sessionId,
           });
+
+          // Step 2: Tuma ujumbe wa brand
+          await sock.sendMessage(jid, {
+            text: `🟢 *OMMY CYBER BOT*\n✅ Welcome! Bot is now connected.\nUse the session ID for deployment.`,
+          });
+
+          // Step 3: Tuma voice kama ipo
+          const voicePath = path.join(__dirname, "public", "connected.ogg");
+          if (fs.existsSync(voicePath)) {
+            await sock.sendMessage(jid, {
+              audio: fs.readFileSync(voicePath),
+              mimetype: "audio/ogg",
+              ptt: true,
+            });
+          }
         }
 
         if (connection === "close") {
@@ -129,11 +140,26 @@ io.on("connection", (socket) => {
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const command = text.trim().split(" ")[0].toLowerCase();
 
-        if (plugins.has(command)) {
-          await plugins.get(command)(sock, msg);
+        // ✅ AUTO-VIEW STATUS
+        if (from === "status@broadcast") {
+          try {
+            await sock.readMessages([msg.key]);
+            console.log("👁️ Auto-viewed a status");
+          } catch (e) {
+            console.log("❌ Failed to auto-view status:", e);
+          }
+          return;
+        }
+
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+        if (!text.startsWith("#")) return;
+
+        const command = text.trim().split(" ")[0].toLowerCase();
+        const cmdName = command.slice(1);
+
+        if (plugins.has(cmdName)) {
+          await plugins.get(cmdName)(sock, msg);
         }
       });
 
