@@ -9,7 +9,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  DisconnectReason,
   makeInMemoryStore
 } = require("@whiskeysockets/baileys");
 
@@ -23,27 +22,38 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
+// Homepage
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// Optional fallback routes
+app.get("/qr", (req, res) => res.redirect("/"));
+app.get("/pair", (req, res) => res.redirect("/"));
+
 const sessions = new Map();
 const plugins = new Map();
 
-// 🔁 Load plugins from /plugins
-fs.readdirSync("./plugins").forEach(file => {
-  if (file.endsWith(".js")) {
-    const plugin = require(`./plugins/${file}`);
-    plugins.set(plugin.name, plugin.execute);
-  }
-});
+// 🔁 Load plugins
+const pluginPath = path.join(__dirname, "plugins");
+if (fs.existsSync(pluginPath)) {
+  fs.readdirSync(pluginPath).forEach(file => {
+    if (file.endsWith(".js")) {
+      const plugin = require(path.join(pluginPath, file));
+      if (plugin.name && plugin.execute) {
+        plugins.set(plugin.name, plugin.execute);
+        console.log(`🔌 Loaded plugin: ${plugin.name}`);
+      }
+    }
+  });
+}
 
 io.on("connection", (socket) => {
-  console.log("✅ Connected:", socket.id);
+  console.log("✅ Socket connected:", socket.id);
 
   socket.on("startPairing", async ({ number, method }) => {
     if (!number || !/^\d{9,15}$/.test(number)) {
-      socket.emit("error", "❌ Invalid phone number");
+      socket.emit("error", "❌ Invalid phone number format.");
       return;
     }
 
@@ -62,10 +72,10 @@ io.on("connection", (socket) => {
         version,
         auth: state,
         printQRInTerminal: false,
-        getMessage: async () => ({ conversation: "✅ Connected" }),
+        getMessage: async () => ({ conversation: "✅ Bot Ready" }),
       });
 
-      // Auto Presence
+      // Auto presence
       if (process.env.AUTO_TYPING === "on") sock.sendPresenceUpdate("composing");
       if (process.env.AUTO_RECORD === "on") sock.sendPresenceUpdate("recording");
       if (process.env.AUTO_AVAILABLE === "on") sock.sendPresenceUpdate("available");
@@ -73,55 +83,54 @@ io.on("connection", (socket) => {
       sessions.set(number, sock);
       socket.emit("status", "🔗 Connecting to WhatsApp...");
 
-      // 🟠 Events
       sock.ev.on("connection.update", async (update) => {
         const { connection, qr, pairingCode, lastDisconnect } = update;
 
         if (method === "qr" && qr) {
           const qrImage = await qrcode.toDataURL(qr);
           socket.emit("qr", qrImage);
-          socket.emit("status", "📸 Scan QR Code");
+          socket.emit("status", "📸 Scan the QR code with WhatsApp.");
         }
 
         if (method === "code" && pairingCode) {
-          const customCode = Math.floor(10000000 + Math.random() * 90000000).toString();
-          socket.emit("pairCode", customCode);
-          socket.emit("status", `🔐 Use this code on WhatsApp`);
+          socket.emit("pairCode", pairingCode);
+          socket.emit("status", "🔐 Use this code on WhatsApp → Linked Devices");
 
           const jid = `${number}@s.whatsapp.net`;
           await sock.sendMessage(jid, {
-            text: `🔐 Pairing Code: *${customCode}*\nOpen WhatsApp ➜ Linked Devices ➜ Link with Code`
+            text: `🔐 *Pairing Code*: ${pairingCode}\nOpen WhatsApp ➜ Linked Devices ➜ Link with Code`
           });
         }
 
         if (connection === "open") {
-          socket.emit("status", "✅ Connected!");
           await saveCreds();
+          socket.emit("status", "✅ Connected successfully!");
 
           const sessionId = Buffer.from(authPath).toString("base64");
           const jid = `${number}@s.whatsapp.net`;
           await sock.sendMessage(jid, {
-            text: `✅ Connected!\n\n📦 Session ID:\n\`\`\`${sessionId}\`\`\`\nUse this for bot deployment.`
+            text: `✅ Bot Connected!\n\n🪪 *Session ID*:\n\`\`\`${sessionId}\`\`\`\nUse this for deployment.`
           });
         }
 
         if (connection === "close") {
           sessions.delete(number);
-          const code = lastDisconnect?.error?.output?.statusCode;
-          const reason = code === 401 ? "Logged out." : "Disconnected.";
-          socket.emit("error", "❌ " + reason);
+          let reason = "❌ Disconnected";
+          if (lastDisconnect?.error?.output?.statusCode === 401) {
+            reason = "❌ Session expired / logged out.";
+          }
+          socket.emit("error", reason);
         }
       });
 
-      // 🔌 Handle messages
       sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const command = body.trim().split(" ")[0].toLowerCase();
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+        const command = text.trim().split(" ")[0].toLowerCase();
 
         if (plugins.has(command)) {
           await plugins.get(command)(sock, msg);
@@ -130,13 +139,13 @@ io.on("connection", (socket) => {
 
       sock.ev.on("creds.update", saveCreds);
     } catch (err) {
-      console.error("❌ Pairing error:", err.message);
+      console.error("❌ Pairing Error:", err.message);
       socket.emit("error", "❌ " + err.message);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id);
+    console.log("❌ Socket disconnected:", socket.id);
   });
 });
 
