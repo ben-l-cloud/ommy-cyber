@@ -2,239 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OMMY CYBER BOT - PAIRING</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OMMY CYBER BOT - Pair WhatsApp</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
     body {
+      margin: 0;
       font-family: 'Orbitron', sans-serif;
-      background: url("cyber.png") no-repeat center center fixed;
-      background-size: cover;
+      background: linear-gradient(to right, #000000, #0f2027);
+      color: white;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: start;
-      min-height: 100vh;
-      padding: 40px 20px;
-      color: #00ffff;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
     }
-
-    .container {
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(10px);
-      border: 2px solid #00ffff33;
-      box-shadow: 0 0 20px #00ffff55;
-      border-radius: 20px;
-      padding: 30px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-    }
-
     h1 {
-      font-size: 2rem;
-      margin-bottom: 20px;
-      color: #00ffff;
-      text-shadow: 0 0 12px #00ffff;
+      margin-bottom: 0.5rem;
+      color: #00ffcc;
+      text-shadow: 0 0 10px #00ffcc;
     }
-
-    .tabs {
-      display: flex;
-      margin-bottom: 20px;
-      gap: 10px;
-    }
-
-    .tab {
-      flex: 1;
-      padding: 10px;
-      cursor: pointer;
-      background: #001e1e;
-      border: 1px solid #00ffff55;
-      border-radius: 10px;
-      color: #00ffff;
-      transition: 0.3s;
-    }
-
-    .tab.active {
-      background: #00ffff;
-      color: #000;
-      font-weight: bold;
-    }
-
-    .tabContent {
-      display: none;
-    }
-
-    .tabContent.active {
-      display: block;
-      animation: fadeIn 0.6s ease-in-out;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 15px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 10px;
-      outline: none;
-      text-align: center;
-    }
-
-    input {
-      background: #001e1e;
-      color: #00ffff;
-      border: 1px solid #00ffff55;
-    }
-
-    button {
-      background: #00ffff;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.3s ease;
-    }
-
-    button:hover {
-      background: #00cccc;
-    }
-
     #status {
-      margin-top: 20px;
-      font-size: 0.95rem;
-      min-height: 25px;
-      color: #ccffff;
-      text-shadow: 0 0 5px #00ffff;
+      margin-top: 10px;
+      font-size: 16px;
+      color: #ccc;
     }
-
-    #qrImage, #pairCode {
+    #qr-container {
       margin-top: 30px;
-      display: none;
-    }
-
-    #qrImage {
-      width: 280px;
-      max-width: 100%;
-      border: 3px solid #00ffff;
-      border-radius: 15px;
-      box-shadow: 0 0 25px #00ffff99;
-    }
-
-    #pairCode {
-      font-size: 1.8rem;
-      letter-spacing: 2px;
       padding: 15px;
-      background: rgba(0, 255, 255, 0.08);
-      border: 2px dashed #00ffff88;
-      border-radius: 12px;
-      user-select: all;
-      color: #00ffff;
+      border-radius: 10px;
+      background-color: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 20px rgba(0,255,204,0.3);
     }
-
-    footer {
-      margin-top: 40px;
-      font-size: 0.9rem;
-      opacity: 0.6;
-      color: #00cccc;
+    #qr {
+      width: 250px;
+      height: 250px;
+      border-radius: 10px;
+      background-color: #fff;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    input, select, button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    input {
+      width: 160px;
+    }
+    button {
+      background-color: #00ffcc;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #0fffc4;
+    }
+    #pairCodeDisplay {
+      margin-top: 10px;
+      font-size: 18px;
+      background-color: #111;
+      padding: 10px;
+      border-radius: 5px;
+      color: #0ff;
+      word-break: break-word;
     }
   </style>
 </head>
 <body>
-
-  <div class="container">
-    <h1>🔥 OMMY CYBER BOT 🔥</h1>
-
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('qrTab')">📱 QR Scan</div>
-      <div class="tab" onclick="switchTab('pairTab')">🔐 Pair Code</div>
-    </div>
-
-    <!-- QR TAB -->
-    <div class="tabContent active" id="qrTab">
-      <div id="statusQR">📸 Waiting for QR Code...</div>
-      <img id="qrImage" alt="QR Code" />
-    </div>
-
-    <!-- PAIR TAB -->
-    <div class="tabContent" id="pairTab">
-      <input type="text" id="phone" placeholder="Enter your phone (e.g. 2557xxxxxxx)" maxlength="15" />
-      <button onclick="startPairCode()">Get Pair Code</button>
-      <div id="statusPair">🕓 Waiting for Pair Code...</div>
-      <div id="pairCode"></div>
-    </div>
+  <h1>🤖 OMMY CYBER BOT</h1>
+  <div>
+    <input id="number" type="text" placeholder="Phone number e.g. 2557XXXXXXX" />
+    <select id="method">
+      <option value="qr">QR Code</option>
+      <option value="code">Pair Code</option>
+    </select>
+    <button onclick="startPairing()">Connect</button>
   </div>
 
-  <footer>© 2025 Ommy Cyber | All rights reserved</footer>
+  <div id="status">⌛ Waiting to start...</div>
+
+  <div id="qr-container">
+    <img id="qr" src="" alt="QR Code" />
+    <div id="pairCodeDisplay"></div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    const qrImg = document.getElementById("qr");
+    const pairCodeDisplay = document.getElementById("pairCodeDisplay");
+    const status = document.getElementById("status");
 
-    const qrTab = document.getElementById("qrTab");
-    const pairTab = document.getElementById("pairTab");
-    const tabs = document.querySelectorAll(".tab");
-    const contents = document.querySelectorAll(".tabContent");
+    socket.on("qr", data => {
+      qrImg.src = data;
+      pairCodeDisplay.innerText = "";
+    });
 
-    const statusQR = document.getElementById("statusQR");
-    const qrImage = document.getElementById("qrImage");
+    socket.on("pairCode", code => {
+      qrImg.src = "";
+      pairCodeDisplay.innerText = "🔐 Pairing Code: " + code;
+    });
 
-    const phoneInput = document.getElementById("phone");
-    const statusPair = document.getElementById("statusPair");
-    const pairCodeDiv = document.getElementById("pairCode");
+    socket.on("status", msg => {
+      status.innerText = msg;
+    });
 
-    function switchTab(id) {
-      contents.forEach(c => c.classList.remove("active"));
-      tabs.forEach(t => t.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-      const tabBtn = Array.from(tabs).find(t => t.textContent.includes(id.includes("qr") ? "QR" : "Pair"));
-      tabBtn.classList.add("active");
+    socket.on("error", msg => {
+      status.innerText = "❌ " + msg;
+    });
+
+    function startPairing() {
+      const number = document.getElementById("number").value.trim();
+      const method = document.getElementById("method").value;
+      qrImg.src = "";
+      pairCodeDisplay.innerText = "";
+      socket.emit("startPairing", { number, method });
+      status.innerText = "🔄 Connecting...";
     }
-
-    function startPairCode() {
-      const number = phoneInput.value.trim();
-      if (!/^\d{9,15}$/.test(number)) {
-        alert("⚠️ Invalid number!");
-        return;
-      }
-      statusPair.textContent = "🔄 Requesting Pair Code...";
-      pairCodeDiv.style.display = "none";
-      socket.emit("startPairing", { number, method: "code" });
-    }
-
-    socket.emit("startPairing", { method: "qr" }); // auto-request QR on load
-
-    socket.on("status", (msg) => {
-      statusQR.textContent = msg;
-      statusPair.textContent = msg;
-    });
-
-    socket.on("qr", (dataUrl) => {
-      qrImage.src = dataUrl;
-      qrImage.style.display = "block";
-      statusQR.textContent = "📸 Scan QR using WhatsApp";
-    });
-
-    socket.on("pairCode", (code) => {
-      pairCodeDiv.textContent = code;
-      pairCodeDiv.style.display = "block";
-      statusPair.textContent = "🔐 Use this code in Linked Devices";
-    });
-
-    socket.on("error", (err) => {
-      statusQR.textContent = err;
-      statusPair.textContent = err;
-    });
   </script>
 </body>
 </html>
