@@ -16,14 +16,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
+const PREFIX = process.env.PREFIX || "!";
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/qr", (req, res) => res.redirect("/"));
-app.get("/pair", (req, res) => res.redirect("/"));
+app.get("/", (_, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/qr", (_, res) => res.redirect("/"));
+app.get("/pair", (_, res) => res.redirect("/"));
 
 const sessions = new Map();
 const plugins = new Map();
@@ -104,15 +105,11 @@ io.on("connection", (socket) => {
           const sessionId = Buffer.from(authPath).toString("base64");
           const jid = `${number}@s.whatsapp.net`;
 
-          // Step 1: Tuma Session ID
           await sock.sendMessage(jid, { text: sessionId });
-
-          // Step 2: Brand Message
           await sock.sendMessage(jid, {
             text: `🟢 *OMMY CYBER BOT*\n✅ Welcome! Bot is now connected.\nUse the session ID for deployment.`,
           });
 
-          // Step 3: Voice Audio
           const voicePath = path.join(__dirname, "public", "connected.ogg");
           if (fs.existsSync(voicePath)) {
             await sock.sendMessage(jid, {
@@ -140,25 +137,39 @@ io.on("connection", (socket) => {
 
         const from = msg.key.remoteJid;
 
-        // ✅ AUTO-VIEW STATUS
+        // ✅ AUTO-VIEW + REACT STATUS
         if (from === "status@broadcast") {
           try {
             await sock.readMessages([msg.key]);
             console.log("👁️ Auto-viewed a status");
+
+            if (process.env.AUTO_REACT === "on") {
+              const emojis = ["🔥", "❤️", "👍", "🥰", "💯", "😂", "😎"];
+              const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+              await sock.sendMessage(from, {
+                react: { text: emoji, key: msg.key }
+              });
+              console.log("✨ Reacted with:", emoji);
+            }
           } catch (e) {
-            console.log("❌ Failed to auto-view status:", e);
+            console.log("❌ Failed to auto-view/react status:", e);
           }
           return;
         }
 
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        if (!text.startsWith("#")) return;
+        if (!text.startsWith(PREFIX)) return;
 
         const command = text.trim().split(" ")[0].toLowerCase();
-        const cmdName = command.slice(1);
+        const cmdName = command.slice(PREFIX.length);
 
         if (plugins.has(cmdName)) {
-          await plugins.get(cmdName)(sock, msg);
+          try {
+            await plugins.get(cmdName)(sock, msg);
+          } catch (e) {
+            console.log("❌ Plugin Error:", e);
+            await sock.sendMessage(from, { text: `❌ Error running command: ${cmdName}` });
+          }
         }
       });
 
