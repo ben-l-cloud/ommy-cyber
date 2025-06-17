@@ -67,9 +67,10 @@ io.on("connection", (socket) => {
         auth: state,
         printQRInTerminal: false,
         getMessage: async () => ({ conversation: "✅ Bot Ready" }),
+        browser: ["OmmyCyberBot", "Chrome", "121"],
+        pairingCode: method === "code",
       });
 
-      // Presence control
       if (process.env.AUTO_TYPING === "on") sock.sendPresenceUpdate("composing");
       if (process.env.AUTO_RECORD === "on") sock.sendPresenceUpdate("recording");
       if (process.env.AUTO_AVAILABLE === "on") sock.sendPresenceUpdate("available");
@@ -103,17 +104,15 @@ io.on("connection", (socket) => {
           const sessionId = Buffer.from(authPath).toString("base64");
           const jid = `${number}@s.whatsapp.net`;
 
-          // Step 1: Tuma Session ID tu
-          await sock.sendMessage(jid, {
-            text: sessionId,
-          });
+          // Step 1: Tuma Session ID
+          await sock.sendMessage(jid, { text: sessionId });
 
-          // Step 2: Tuma ujumbe wa brand
+          // Step 2: Brand Message
           await sock.sendMessage(jid, {
             text: `🟢 *OMMY CYBER BOT*\n✅ Welcome! Bot is now connected.\nUse the session ID for deployment.`,
           });
 
-          // Step 3: Tuma voice kama ipo
+          // Step 3: Voice Audio
           const voicePath = path.join(__dirname, "public", "connected.ogg");
           if (fs.existsSync(voicePath)) {
             await sock.sendMessage(jid, {
