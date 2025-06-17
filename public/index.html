@@ -2,170 +2,238 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OMMY CYBER BOT - PAIRING SITE</title>
+  <title>OMMY CYBER BOT - PAIRING</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <style>
-    body {
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    body {
+      font-family: 'Orbitron', sans-serif;
       background: url("cyber.png") no-repeat center center fixed;
       background-size: cover;
-      font-family: monospace, monospace;
-      color: #00ffff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: start;
       min-height: 100vh;
-      text-align: center;
-      padding-top: 50px;
-    }
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 20px;
-      text-shadow: 0 0 10px #00ffff;
-    }
-    input[type="text"] {
-      font-size: 1.2rem;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      width: 250px;
-      margin-bottom: 10px;
-      outline: none;
-      text-align: center;
-    }
-    select {
-      font-size: 1.2rem;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      width: 270px;
-      margin-bottom: 15px;
-      outline: none;
-      background: #001010;
+      padding: 40px 20px;
       color: #00ffff;
-      cursor: pointer;
     }
-    button {
-      font-size: 1.2rem;
-      padding: 10px 25px;
-      border-radius: 8px;
-      border: none;
+
+    .container {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      border: 2px solid #00ffff33;
+      box-shadow: 0 0 20px #00ffff55;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #00ffff;
+      text-shadow: 0 0 12px #00ffff;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      cursor: pointer;
+      background: #001e1e;
+      border: 1px solid #00ffff55;
+      border-radius: 10px;
+      color: #00ffff;
+      transition: 0.3s;
+    }
+
+    .tab.active {
       background: #00ffff;
-      color: black;
+      color: #000;
+      font-weight: bold;
+    }
+
+    .tabContent {
+      display: none;
+    }
+
+    .tabContent.active {
+      display: block;
+      animation: fadeIn 0.6s ease-in-out;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 15px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 10px;
+      outline: none;
+      text-align: center;
+    }
+
+    input {
+      background: #001e1e;
+      color: #00ffff;
+      border: 1px solid #00ffff55;
+    }
+
+    button {
+      background: #00ffff;
+      color: #000;
       font-weight: bold;
       cursor: pointer;
-      transition: background 0.3s ease;
+      transition: 0.3s ease;
     }
+
     button:hover {
-      background: #00ccaa;
+      background: #00cccc;
     }
+
     #status {
       margin-top: 20px;
-      font-size: 1.1rem;
-      min-height: 1.5rem;
+      font-size: 0.95rem;
+      min-height: 25px;
+      color: #ccffff;
       text-shadow: 0 0 5px #00ffff;
     }
+
+    #qrImage, #pairCode {
+      margin-top: 30px;
+      display: none;
+    }
+
     #qrImage {
-      margin-top: 30px;
-      max-width: 300px;
-      border: 4px solid #00ffff;
+      width: 280px;
+      max-width: 100%;
+      border: 3px solid #00ffff;
       border-radius: 15px;
-      display: none;
-      box-shadow: 0 0 15px #00ffff;
+      box-shadow: 0 0 25px #00ffff99;
     }
+
     #pairCode {
-      margin-top: 30px;
-      font-size: 2rem;
-      background: rgba(0, 255, 255, 0.1);
-      padding: 15px 20px;
-      border-radius: 12px;
-      border: 2px solid #00ffff;
-      display: none;
-      user-select: all;
+      font-size: 1.8rem;
       letter-spacing: 2px;
-    }
-    footer {
-      margin-top: auto;
       padding: 15px;
-      font-size: 14px;
+      background: rgba(0, 255, 255, 0.08);
+      border: 2px dashed #00ffff88;
+      border-radius: 12px;
+      user-select: all;
+      color: #00ffff;
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 0.9rem;
       opacity: 0.6;
       color: #00cccc;
-      user-select: none;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <h1>🔥 OMMY CYBER BOT 🔥</h1>
 
-  <input type="text" id="phone" placeholder="Enter your phone number (e.g. 255760317060)" maxlength="15" />
-  <select id="method">
-    <option value="qr">📱 Scan QR Code</option>
-    <option value="code">🔐 Show Pair Code</option>
-  </select>
-  <button id="startBtn">Start Pairing</button>
+  <div class="container">
+    <h1>🔥 OMMY CYBER BOT 🔥</h1>
 
-  <div id="status"></div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('qrTab')">📱 QR Scan</div>
+      <div class="tab" onclick="switchTab('pairTab')">🔐 Pair Code</div>
+    </div>
 
-  <img id="qrImage" alt="QR Code for WhatsApp pairing" />
-  <div id="pairCode"></div>
+    <!-- QR TAB -->
+    <div class="tabContent active" id="qrTab">
+      <div id="statusQR">📸 Waiting for QR Code...</div>
+      <img id="qrImage" alt="QR Code" />
+    </div>
 
-  <footer>
-    Made with ❤️ by Ommy Cyber
-  </footer>
+    <!-- PAIR TAB -->
+    <div class="tabContent" id="pairTab">
+      <input type="text" id="phone" placeholder="Enter your phone (e.g. 2557xxxxxxx)" maxlength="15" />
+      <button onclick="startPairCode()">Get Pair Code</button>
+      <div id="statusPair">🕓 Waiting for Pair Code...</div>
+      <div id="pairCode"></div>
+    </div>
+  </div>
+
+  <footer>© 2025 Ommy Cyber | All rights reserved</footer>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const phoneInput = document.getElementById("phone");
-    const methodSelect = document.getElementById("method");
-    const startBtn = document.getElementById("startBtn");
-    const statusDiv = document.getElementById("status");
+
+    const qrTab = document.getElementById("qrTab");
+    const pairTab = document.getElementById("pairTab");
+    const tabs = document.querySelectorAll(".tab");
+    const contents = document.querySelectorAll(".tabContent");
+
+    const statusQR = document.getElementById("statusQR");
     const qrImage = document.getElementById("qrImage");
+
+    const phoneInput = document.getElementById("phone");
+    const statusPair = document.getElementById("statusPair");
     const pairCodeDiv = document.getElementById("pairCode");
 
-    startBtn.addEventListener("click", () => {
-      const number = phoneInput.value.trim();
-      const method = methodSelect.value;
+    function switchTab(id) {
+      contents.forEach(c => c.classList.remove("active"));
+      tabs.forEach(t => t.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      const tabBtn = Array.from(tabs).find(t => t.textContent.includes(id.includes("qr") ? "QR" : "Pair"));
+      tabBtn.classList.add("active");
+    }
 
-      if (!number || !/^\d{9,15}$/.test(number)) {
-        alert("❌ Please enter a valid phone number (digits only, 9 to 15 characters).");
+    function startPairCode() {
+      const number = phoneInput.value.trim();
+      if (!/^\d{9,15}$/.test(number)) {
+        alert("⚠️ Invalid number!");
         return;
       }
-
-      // Reset UI
-      statusDiv.textContent = "🔗 Connecting...";
-      qrImage.style.display = "none";
-      qrImage.src = "";
+      statusPair.textContent = "🔄 Requesting Pair Code...";
       pairCodeDiv.style.display = "none";
-      pairCodeDiv.textContent = "";
+      socket.emit("startPairing", { number, method: "code" });
+    }
 
-      socket.emit("startPairing", { number, method });
-    });
+    socket.emit("startPairing", { method: "qr" }); // auto-request QR on load
 
-    socket.on("status", msg => {
-      statusDiv.textContent = msg;
+    socket.on("status", (msg) => {
+      statusQR.textContent = msg;
+      statusPair.textContent = msg;
     });
 
     socket.on("qr", (dataUrl) => {
       qrImage.src = dataUrl;
       qrImage.style.display = "block";
-      pairCodeDiv.style.display = "none";
-      statusDiv.textContent = "📸 Scan the QR code with WhatsApp.";
+      statusQR.textContent = "📸 Scan QR using WhatsApp";
     });
 
     socket.on("pairCode", (code) => {
       pairCodeDiv.textContent = code;
       pairCodeDiv.style.display = "block";
-      qrImage.style.display = "none";
-      statusDiv.textContent = "🔐 Use this code on WhatsApp → Linked Devices.";
+      statusPair.textContent = "🔐 Use this code in Linked Devices";
     });
 
-    socket.on("error", (errMsg) => {
-      statusDiv.textContent = errMsg;
-      qrImage.style.display = "none";
-      pairCodeDiv.style.display = "none";
+    socket.on("error", (err) => {
+      statusQR.textContent = err;
+      statusPair.textContent = err;
     });
   </script>
 </body>
