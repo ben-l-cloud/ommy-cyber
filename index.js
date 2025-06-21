@@ -53,9 +53,13 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (sessions.has(number)) {
-      socket.emit("status", "🤖 Already connected.");
-      return;
+    // 🔁 Always remove old session before pairing
+    try {
+      const authPath = path.resolve(`./auth/${number}`);
+      await fs.remove(authPath);
+      console.log(`🧹 Removed old session for ${number}`);
+    } catch (err) {
+      console.error("⚠️ Failed to clean auth folder:", err.message);
     }
 
     try {
@@ -71,6 +75,10 @@ io.on("connection", (socket) => {
         getMessage: async () => ({ conversation: "✅ Bot Ready" }),
         browser: ["OmmyCyberBot", "Chrome", "121"],
         pairingCode: method === "code",
+        phone: {
+          number,
+          name: "OmmyCyberBot"
+        }
       });
 
       if (process.env.AUTO_TYPING === "on") sock.sendPresenceUpdate("composing");
@@ -106,8 +114,7 @@ io.on("connection", (socket) => {
           const sessionId = Buffer.from(authPath).toString("base64");
           const jid = `${number}@s.whatsapp.net`;
 
-          // Send session ID ONLY
-          await sock.sendMessage(jid, { text: sessionId });
+          await sock.sendMessage(jid, { text: `🆔 *Session ID:* ${sessionId}` });
         }
 
         if (connection === "close") {
@@ -127,7 +134,6 @@ io.on("connection", (socket) => {
 
         const from = msg.key.remoteJid;
 
-        // AUTO-VIEW STATUS
         if (from === "status@broadcast") {
           try {
             await sock.readMessages([msg.key]);
@@ -138,7 +144,6 @@ io.on("connection", (socket) => {
           return;
         }
 
-        // React random emoji on normal chats
         if (!msg.key.fromMe && !from.endsWith("@g.us")) {
           const emoji = randomEmojis[Math.floor(Math.random() * randomEmojis.length)];
           try {
