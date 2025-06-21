@@ -3,126 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>OMMY CYBER BOT - Pair WhatsApp</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <title>Ommy Cyber Bot - Pairing</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
     body {
-      margin: 0;
-      font-family: 'Orbitron', sans-serif;
-      background: linear-gradient(to right, #000000, #0f2027);
-      color: white;
+      background: #0f0f0f;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
+      padding: 2rem;
     }
-    h1 {
-      margin-bottom: 0.5rem;
-      color: #00ffcc;
-      text-shadow: 0 0 10px #00ffcc;
+
+    .container {
+      max-width: 500px;
+      background: #1e1e1e;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 0 30px #00ffae44;
     }
-    #status {
-      margin-top: 10px;
-      font-size: 16px;
-      color: #ccc;
+
+    .title {
+      text-align: center;
+      margin-bottom: 1rem;
     }
-    #qr-container {
-      margin-top: 30px;
-      padding: 15px;
-      border-radius: 10px;
-      background-color: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 0 20px rgba(0,255,204,0.3);
-    }
-    #qr {
-      width: 250px;
-      height: 250px;
-      border-radius: 10px;
-      background-color: #fff;
-    }
-    input, select, button {
-      padding: 10px;
+
+    .form-control, .form-select {
+      background-color: #292929;
+      color: #fff;
       border: none;
-      border-radius: 5px;
-      margin: 5px;
-      font-size: 16px;
     }
-    input {
-      width: 160px;
+
+    #qrImage, #pairCode {
+      display: none;
+      text-align: center;
+      margin-top: 2rem;
     }
-    button {
-      background-color: #00ffcc;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
+
+    #qrImage img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 20px #00ffaeaa;
     }
-    button:hover {
-      background-color: #0fffc4;
-    }
-    #pairCodeDisplay {
-      margin-top: 10px;
-      font-size: 18px;
-      background-color: #111;
-      padding: 10px;
-      border-radius: 5px;
+
+    .status {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 1.1rem;
       color: #0ff;
-      word-break: break-word;
     }
   </style>
 </head>
 <body>
-  <h1>🤖 OMMY CYBER BOT</h1>
-  <div>
-    <input id="number" type="text" placeholder="Phone number e.g. 2557XXXXXXX" />
-    <select id="method">
-      <option value="qr">QR Code</option>
-      <option value="code">Pair Code</option>
-    </select>
-    <button onclick="startPairing()">Connect</button>
-  </div>
+  <div class="container">
+    <h2 class="title">🤖 Ommy Cyber Bot Pairing</h2>
+    
+    <form id="pairForm">
+      <div class="mb-3">
+        <label for="number" class="form-label">📱 Your WhatsApp Number</label>
+        <input type="tel" class="form-control" id="number" placeholder="e.g. 255700000000" required />
+      </div>
 
-  <div id="status">⌛ Waiting to start...</div>
+      <div class="mb-3">
+        <label for="method" class="form-label">🔐 Pairing Method</label>
+        <select class="form-select" id="method" required>
+          <option value="qr">QR Code</option>
+          <option value="code">8-Digit Code</option>
+        </select>
+      </div>
 
-  <div id="qr-container">
-    <img id="qr" src="" alt="QR Code" />
-    <div id="pairCodeDisplay"></div>
+      <button type="submit" class="btn btn-success w-100">🚀 Start Pairing</button>
+    </form>
+
+    <div id="qrImage">
+      <h5>📸 Scan QR Code:</h5>
+      <img id="qr" src="" alt="QR Code" />
+    </div>
+
+    <div id="pairCode">
+      <h5>🔢 Your Pairing Code:</h5>
+      <pre id="codeText" style="font-size: 1.5rem; font-weight: bold;"></pre>
+    </div>
+
+    <div class="status" id="status">⌛ Awaiting pairing...</div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const qrImg = document.getElementById("qr");
-    const pairCodeDisplay = document.getElementById("pairCodeDisplay");
+    const form = document.getElementById("pairForm");
+    const qrImage = document.getElementById("qrImage");
+    const pairCode = document.getElementById("pairCode");
+    const qr = document.getElementById("qr");
+    const codeText = document.getElementById("codeText");
     const status = document.getElementById("status");
 
-    socket.on("qr", data => {
-      qrImg.src = data;
-      pairCodeDisplay.innerText = "";
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const number = document.getElementById("number").value.trim();
+      const method = document.getElementById("method").value;
+
+      qrImage.style.display = "none";
+      pairCode.style.display = "none";
+      status.innerText = "⏳ Connecting...";
+
+      socket.emit("startPairing", { number, method });
     });
 
-    socket.on("pairCode", code => {
-      qrImg.src = "";
-      pairCodeDisplay.innerText = "🔐 Pairing Code: " + code;
-    });
-
-    socket.on("status", msg => {
+    socket.on("status", (msg) => {
       status.innerText = msg;
     });
 
-    socket.on("error", msg => {
-      status.innerText = "❌ " + msg;
+    socket.on("qr", (img) => {
+      qr.src = img;
+      qrImage.style.display = "block";
     });
 
-    function startPairing() {
-      const number = document.getElementById("number").value.trim();
-      const method = document.getElementById("method").value;
-      qrImg.src = "";
-      pairCodeDisplay.innerText = "";
-      socket.emit("startPairing", { number, method });
-      status.innerText = "🔄 Connecting...";
-    }
+    socket.on("pairCode", (code) => {
+      codeText.innerText = code;
+      pairCode.style.display = "block";
+    });
+
+    socket.on("error", (err) => {
+      status.innerText = err;
+      qrImage.style.display = "none";
+      pairCode.style.display = "none";
+    });
   </script>
 </body>
 </html>
