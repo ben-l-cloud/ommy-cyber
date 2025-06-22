@@ -9,7 +9,7 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  proto,
+  jidNormalizedUser
 } = require("@whiskeysockets/baileys");
 
 dotenv.config();
@@ -25,8 +25,10 @@ app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 const sessions = new Map();
 const plugins = new Map();
-const pluginPath = path.join(__dirname, "plugins");
+const randomEmojis = ["😄", "👍", "🎉", "✨", "🔥", "❤️", "🤖", "💯", "🚀"];
 
+// Load plugins
+const pluginPath = path.join(__dirname, "plugins");
 if (fs.existsSync(pluginPath)) {
   fs.readdirSync(pluginPath).forEach(file => {
     if (file.endsWith(".js")) {
@@ -38,9 +40,6 @@ if (fs.existsSync(pluginPath)) {
     }
   });
 }
-
-const isGroup = jid => jid.endsWith("@g.us");
-const randomEmojis = ["🔥", "💯", "🤖", "✨", "🚀", "❤️"];
 
 io.on("connection", (socket) => {
   console.log("✅ Socket connected:", socket.id);
@@ -62,13 +61,12 @@ io.on("connection", (socket) => {
       version,
       auth: state,
       printQRInTerminal: false,
-      browser: ["Ommy Cyber Bot", "Chrome", "121"],
-      getMessage: async () => ({ conversation: "🤖 Ommy Cyber Bot Ready!" }),
+      browser: ["OmmyCyberBot", "Chrome", "121"],
       pairingCode: method === "code",
-      phone: method === "code" ? { number } : undefined // ✅ Required for 8-digit pairing code
+      phone: method === "code" ? { number, name: "Ommy Cyber Bot" } : undefined,
+      getMessage: async () => ({ conversation: "✅ Bot Ready" }),
     });
 
-    sessions.set(number, sock);
     socket.emit("status", "🔗 Connecting...");
 
     sock.ev.on("connection.update", async (update) => {
@@ -77,16 +75,16 @@ io.on("connection", (socket) => {
       if (method === "qr" && qr) {
         const qrImage = await qrcode.toDataURL(qr);
         socket.emit("qr", qrImage);
-        socket.emit("status", "📸 Scan QR on WhatsApp.");
+        socket.emit("status", "📸 Scan QR with WhatsApp");
       }
 
       if (method === "code" && pairingCode) {
         socket.emit("pairCode", pairingCode);
-        socket.emit("status", "🔐 Use this 8-digit code in WhatsApp ➜ Linked Devices");
+        socket.emit("status", "🔐 Use code in Linked Devices");
 
         const jid = `${number}@s.whatsapp.net`;
         await sock.sendMessage(jid, {
-          text: `🔐 *Pair Code*: ${pairingCode}\nGo to WhatsApp ➜ Linked Devices ➜ Link With Code`,
+          text: `🔐 *Your Pair Code:* ${pairingCode}\n📲 Go to WhatsApp > Linked Devices > Link with Code`
         });
       }
 
@@ -94,18 +92,19 @@ io.on("connection", (socket) => {
         await saveCreds();
         socket.emit("status", "✅ Connected!");
 
-        const jid = `${number}@s.whatsapp.net`;
         const sessionId = Buffer.from(authPath).toString("base64");
+        const jid = `${number}@s.whatsapp.net`;
 
         await sock.sendMessage(jid, {
-          text: `✅ *Ommy Cyber Bot Active!*\n🆔 *Your Session ID:* \n\`\`\`${sessionId}\`\`\`\nDeploy & Enjoy.`,
+          text: `✅ *Ommy Cyber Bot is now connected!*\n🆔 *Session ID:*\n\`\`\`${sessionId}\`\`\``
         });
       }
 
       if (connection === "close") {
         sessions.delete(number);
         const reason = lastDisconnect?.error?.output?.statusCode === 401
-          ? "❌ Session expired." : "❌ Disconnected.";
+          ? "❌ Session expired"
+          : "❌ Disconnected";
         socket.emit("error", reason);
       }
     });
@@ -114,63 +113,61 @@ io.on("connection", (socket) => {
       if (type !== "notify") return;
       const msg = messages[0];
       if (!msg.message || msg.key.fromMe) return;
+
       const from = msg.key.remoteJid;
-      const sender = msg.key.participant || from;
 
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-
-      // 👁️ Auto-view status
-      if (from === "status@broadcast") {
+      // Auto View Status
+      if (from === "status@broadcast" && process.env.AUTO_VIEW === "on") {
         try {
           await sock.readMessages([msg.key]);
-        } catch {}
+          console.log("👁️ Auto-viewed status");
+        } catch (e) {
+          console.log("❌ Failed to view status");
+        }
         return;
       }
 
-      // 🤖 React emoji
-      if (!isGroup(from)) {
+      // Anti Delete
+      if (msg.message.protocolMessage && process.env.ANTI_DELETE === "on") {
+        const deletedKey = msg.message.protocolMessage.key;
+        const user = jidNormalizedUser(deletedKey.participant || deletedKey.remoteJid);
+        sock.sendMessage(user, {
+          text: `🚫 *AntiDelete:* A message was deleted by @${user.split("@")[0]}`,
+          mentions: [user]
+        });
+        return;
+      }
+
+      // Anti Link
+      if (
+        process.env.ANTI_LINK === "on" &&
+        from.endsWith("@g.us") &&
+        (msg.message.conversation || "").match(/(https?:\/\/chat\.whatsapp\.com\/[a-zA-Z0-9]+)/)
+      ) {
+        await sock.sendMessage(from, {
+          text: `⚠️ *AntiLink:* Link sharing not allowed. @${msg.key.participant?.split("@")[0] || ""}`,
+          mentions: [msg.key.participant || ""]
+        });
+        return;
+      }
+
+      // Auto React
+      if (!from.endsWith("@g.us")) {
         const emoji = randomEmojis[Math.floor(Math.random() * randomEmojis.length)];
         try {
           await sock.sendMessage(from, { react: { text: emoji, key: msg.key } });
-        } catch {}
+        } catch (e) { }
       }
 
-      // 🔗 ANTILINK
-      const isLink = text.includes("chat.whatsapp.com") || /https?:\/\/[^\s]+/i.test(text);
-      if (process.env.ANTILINK === "on" && isGroup(from) && isLink) {
-        try {
-          await sock.sendMessage(from, {
-            text: `⚠️ *Link Not Allowed*`,
-            mentions: [sender],
-          });
-          await sock.sendMessage(from, { delete: msg.key });
-        } catch {}
-      }
+      // Plugins
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+      if (!text.startsWith("#")) return;
 
-      // 🔧 Plugin commands
-      if (text.startsWith("#")) {
-        const cmd = text.split(" ")[0].slice(1).toLowerCase();
-        if (plugins.has(cmd)) {
-          await plugins.get(cmd)(sock, msg);
-        }
+      const command = text.trim().split(" ")[0].slice(1).toLowerCase();
+      if (plugins.has(command)) {
+        await plugins.get(command)(sock, msg);
       }
     });
-
-    // 🗑️ ANTIDELETE
-    if (process.env.ANTIDELETE === "on") {
-      sock.ev.on("messages.delete", async ({ keys }) => {
-        for (const key of keys) {
-          if (!key.fromMe) {
-            const jid = key.remoteJid;
-            const participant = key.participant || jid;
-            await sock.sendMessage(jid, {
-              text: `🗑️ *Message Deleted By:* ${participant}`,
-              mentions: [participant],
-            });
-          }
-        }
-      });
-    }
 
     sock.ev.on("creds.update", saveCreds);
   });
@@ -181,5 +178,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 OMMY CYBER BOT running at: http://localhost:${PORT}`);
+  console.log(`🚀 OMMY CYBER BOT is running at http://localhost:${PORT}`);
 });
