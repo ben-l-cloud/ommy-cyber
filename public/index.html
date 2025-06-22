@@ -6,122 +6,136 @@
   <title>Ommy Cyber Bot - Pairing</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: #eee;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: url("cyber.png") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem;
+      justify-content: center;
       height: 100vh;
-      margin: 0;
+      backdrop-filter: brightness(0.5);
     }
+
     h1 {
-      margin-bottom: 1rem;
-      color: #00ffa6;
-      text-shadow: 0 0 5px #00ffa6;
+      font-size: 2.5rem;
+      text-shadow: 2px 2px 5px #00ffcc;
+      color: #00ffcc;
+      margin-bottom: 2rem;
     }
+
     input, select, button {
       padding: 0.8rem;
+      width: 260px;
       margin: 0.5rem 0;
-      width: 250px;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       font-size: 1rem;
+      outline: none;
     }
+
+    input, select {
+      background: rgba(0, 0, 0, 0.7);
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+    }
+
     button {
-      background: #00ffa6;
-      color: #121212;
+      background-color: #00ffcc;
+      color: #000;
       font-weight: bold;
       cursor: pointer;
-      transition: background 0.3s ease;
+      transition: 0.3s ease;
     }
+
     button:hover {
-      background: #00cc7a;
+      background-color: #00ccaa;
     }
+
     #status {
       margin-top: 1rem;
-      min-height: 1.5rem;
       font-weight: bold;
+      color: #00ffcc;
+      text-align: center;
     }
+
     #qrCode {
-      margin-top: 1rem;
-      max-width: 250px;
-      border: 3px solid #00ffa6;
+      margin-top: 1.5rem;
+      max-width: 300px;
+      border: 2px solid #00ffcc;
       border-radius: 10px;
-      box-shadow: 0 0 10px #00ffa6;
+      box-shadow: 0 0 15px #00ffcc;
+      display: none;
     }
+
     #pairCode {
-      margin-top: 1rem;
-      font-size: 1.5rem;
-      color: #00ffa6;
-      font-weight: bold;
-      letter-spacing: 3px;
+      margin-top: 1.5rem;
+      font-size: 2rem;
+      letter-spacing: 4px;
+      color: #00ffcc;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Ommy Cyber Bot Pairing</h1>
-  <input type="text" id="phoneNumber" placeholder="Enter phone number (e.g. 25576xxxxxxx)" />
+  <h1>🤖 Ommy Cyber Bot</h1>
+  <input id="phoneNumber" type="text" placeholder="Enter Phone Number (e.g. 2557XXXXXXX)" />
   <select id="methodSelect">
-    <option value="direct">Direct Session ID</option>
     <option value="qr">QR Scan</option>
-    <option value="code">8-digit Pair Code</option>
+    <option value="code">8-Digit Pair Code</option>
   </select>
   <button id="startBtn">Start Pairing</button>
 
   <div id="status"></div>
-  <img id="qrCode" src="" alt="QR Code" style="display:none;" />
-  <div id="pairCode" style="display:none;"></div>
+  <img id="qrCode" src="" alt="QR Code" />
+  <div id="pairCode"></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    const phoneInput = document.getElementById('phoneNumber');
-    const methodSelect = document.getElementById('methodSelect');
-    const startBtn = document.getElementById('startBtn');
-    const statusDiv = document.getElementById('status');
-    const qrCodeImg = document.getElementById('qrCode');
-    const pairCodeDiv = document.getElementById('pairCode');
+    const startBtn = document.getElementById("startBtn");
+    const phoneInput = document.getElementById("phoneNumber");
+    const methodSelect = document.getElementById("methodSelect");
+    const status = document.getElementById("status");
+    const qrCodeImg = document.getElementById("qrCode");
+    const pairCodeDiv = document.getElementById("pairCode");
 
     startBtn.onclick = () => {
       const number = phoneInput.value.trim();
       const method = methodSelect.value;
-
       if (!number.match(/^\d{9,15}$/)) {
-        statusDiv.textContent = "❌ Invalid phone number format.";
+        status.textContent = "❌ Invalid phone number!";
         return;
       }
 
-      statusDiv.textContent = "🔄 Starting pairing...";
-      qrCodeImg.style.display = 'none';
-      pairCodeDiv.style.display = 'none';
-      qrCodeImg.src = "";
-      pairCodeDiv.textContent = "";
-
-      socket.emit('startPairing', { number, method });
+      status.textContent = "🔄 Pairing started...";
+      qrCodeImg.style.display = "none";
+      pairCodeDiv.style.display = "none";
+      socket.emit("startPairing", { number, method });
     };
 
-    socket.on('status', (msg) => {
-      statusDiv.textContent = msg;
+    socket.on("status", msg => {
+      status.textContent = msg;
     });
 
-    socket.on('qr', (qrDataUrl) => {
-      qrCodeImg.src = qrDataUrl;
-      qrCodeImg.style.display = 'block';
-      pairCodeDiv.style.display = 'none';
+    socket.on("qr", dataUrl => {
+      qrCodeImg.src = dataUrl;
+      qrCodeImg.style.display = "block";
+      pairCodeDiv.style.display = "none";
     });
 
-    socket.on('pairCode', (code) => {
+    socket.on("pairCode", code => {
       pairCodeDiv.textContent = code;
-      pairCodeDiv.style.display = 'block';
-      qrCodeImg.style.display = 'none';
+      pairCodeDiv.style.display = "block";
+      qrCodeImg.style.display = "none";
     });
 
-    socket.on('error', (err) => {
-      statusDiv.textContent = err;
-      qrCodeImg.style.display = 'none';
-      pairCodeDiv.style.display = 'none';
+    socket.on("error", err => {
+      status.textContent = err;
+      qrCodeImg.style.display = "none";
+      pairCodeDiv.style.display = "none";
     });
   </script>
 </body>
