@@ -26,7 +26,7 @@ io.on("connection", (socket) => {
 
   socket.on("startPairing", async ({ number, method }) => {
     if (!number || !/^\d{9,15}$/.test(number)) {
-      return socket.emit("error", "Invalid phone number.");
+      return socket.emit("error", "📛 Invalid phone number.");
     }
 
     if (sessions.has(number)) {
@@ -47,44 +47,61 @@ io.on("connection", (socket) => {
       });
 
       sessions.set(number, sock);
-      socket.emit("status", "🔄 Connecting to WhatsApp...");
+      socket.emit("status", "⏳ Connecting to WhatsApp...");
 
       sock.ev.on("connection.update", async (update) => {
         const { connection, qr, pairingCode, lastDisconnect } = update;
 
         if (method === "qr" && qr) {
-          const qrImg = await qrcode.toDataURL(qr);
-          socket.emit("qr", qrImg);
-          socket.emit("status", "📱 Scan the QR Code with WhatsApp.");
+          const qrImage = await qrcode.toDataURL(qr);
+          socket.emit("qr", qrImage);
+          socket.emit("status", "📸 Scan the QR code with WhatsApp.");
         }
 
         if (method === "code" && pairingCode) {
           socket.emit("pairCode", pairingCode);
-          socket.emit("status", `🔐 Pairing Code: ${pairingCode}`);
+          socket.emit("status", `🔐 Enter this Pairing Code in WhatsApp: ${pairingCode}`);
         }
 
         if (connection === "open") {
           await saveCreds();
           socket.emit("status", "✅ Connected!");
 
-          const userJid = sock.user.id;
-          const sessionInfo = `🗂 Your session is saved under: /auth/${number}`;
-          await sock.sendMessage(userJid, { text: `✅ Hello! Your bot is connected.\n\n${sessionInfo}` });
+          const jid = sock.user.id;
+
+          // Send session files to the user via WhatsApp
+          const files = await fs.readdir(authFolder);
+          for (const file of files) {
+            if (file.endsWith(".json")) {
+              const content = await fs.readFile(path.join(authFolder, file));
+              await sock.sendMessage(jid, {
+                document: content,
+                mimetype: "application/json",
+                fileName: file,
+                caption: "📦 Your WhatsApp Bot Session ID. Use this to deploy your bot.",
+              });
+            }
+          }
+
+          // Optional: notify user done
+          await sock.sendMessage(jid, {
+            text: "✅ Your session has been saved successfully. You can now deploy your bot. 💡",
+          });
         }
 
         if (connection === "close") {
           sessions.delete(number);
-          let reason = "Connection closed.";
+          let reason = "❌ Disconnected.";
           if (lastDisconnect?.error?.output?.statusCode === 401) {
-            reason = "Session expired.";
+            reason = "🚫 Session expired or invalid login.";
           }
           socket.emit("error", reason);
         }
       });
 
       sock.ev.on("creds.update", saveCreds);
-    } catch (e) {
-      socket.emit("error", "Error: " + e.message);
+    } catch (err) {
+      socket.emit("error", `❌ Failed: ${err.message}`);
     }
   });
 
@@ -94,5 +111,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`✅ Server running at: http://localhost:${PORT}`);
+  console.log(`🚀 BEN - Whittaker Tech Bot is live at http://localhost:${PORT}`);
 });
