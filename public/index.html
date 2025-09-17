@@ -1,113 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ommy Cyber Bot</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: url("cyber.png") no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      backdrop-filter: blur(2px);
-    }
-    .container {
-      background: rgba(0, 0, 0, 0.65);
-      padding: 2rem;
-      border-radius: 10px;
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-    }
-    input, select, button {
-      width: 100%;
-      padding: 0.6rem;
-      margin: 0.5rem 0;
-      border-radius: 5px;
-      border: none;
-      font-size: 1rem;
-    }
-    button {
-      background: #00ff88;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #qrImage {
-      margin-top: 1rem;
-      width: 100%;
-    }
-    #pairCodeDisplay {
-      font-size: 1.5rem;
-      margin-top: 1rem;
-      background: #111;
-      padding: 1rem;
-      border-radius: 8px;
-    }
-    #status {
-      margin-top: 1rem;
-      font-style: italic;
-      color: #0f0;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ommy Cyber Bot</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: url("cyber.png") no-repeat center center fixed;
+    background-size: cover;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    backdrop-filter: blur(2px);
+  }
+  .container {
+    background: rgba(0, 0, 0, 0.65);
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+  input, button {
+    width: 100%;
+    padding: 0.6rem;
+    margin: 0.5rem 0;
+    border-radius: 5px;
+    border: none;
+    font-size: 1rem;
+  }
+  button {
+    background: #00ff88;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #qrImage {
+    margin-top: 1rem;
+    width: 200px;
+    height: 200px;
+    display: none;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #status {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #0f0;
+  }
+  #downloadLink {
+    display: none;
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: #ffde59;
+    color: #000;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h2>🤖 Ommy Cyber Bot</h2>
-    <input type="text" id="numberInput" placeholder="Enter WhatsApp number (e.g. 2557XXXXXXX)" />
-    <select id="methodSelect">
-      <option value="qr">Scan QR Code</option>
-      <option value="code">8-Digit Pair Code</option>
-    </select>
-    <button onclick="startPairing()">Start Pairing</button>
+<div class="container">
+  <h2>🤖 Ommy Cyber Bot</h2>
+  <input type="text" id="numberInput" placeholder="Enter WhatsApp number (e.g. 2557XXXXXXX)" />
+  <button id="startBtn">Start Bot</button>
 
-    <div id="status"></div>
-    <img id="qrImage" style="display: none" />
-    <div id="pairCodeDisplay" style="display: none"></div>
-  </div>
+  <p id="status">Status: Idle</p>
+  <img id="qrImage" />
+  <a id="downloadLink" href="#" download="session.zip">📦 Download Session</a>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const btn = document.getElementById("startBtn");
+  const phoneInput = document.getElementById("numberInput");
+  const qrImg = document.getElementById("qrImage");
+  const status = document.getElementById("status");
+  const downloadLink = document.getElementById("downloadLink");
 
-    function startPairing() {
-      const number = document.getElementById("numberInput").value;
-      const method = document.getElementById("methodSelect").value;
+  btn.addEventListener("click", () => {
+    const number = phoneInput.value.trim();
+    if(!number) return alert("Enter a valid phone number");
+    status.textContent = "Status: ⏳ Starting...";
+    qrImg.style.display = "none";
+    downloadLink.style.display = "none";
+    socket.emit("startPairing", { number });
+  });
 
-      document.getElementById("status").innerText = "⏳ Starting...";
-      document.getElementById("qrImage").style.display = "none";
-      document.getElementById("pairCodeDisplay").style.display = "none";
+  socket.on("status", msg => status.textContent = "Status: " + msg);
+  socket.on("error", msg => status.textContent = "Error: " + msg);
 
-      socket.emit("startPairing", { number, method });
-    }
+  socket.on("qrCode", qr => {
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+    qrImg.style.display = "block";
+  });
 
-    socket.on("qr", (qrImage) => {
-      const qr = document.getElementById("qrImage");
-      qr.src = qrImage;
-      qr.style.display = "block";
-    });
-
-    socket.on("pairCode", (code) => {
-      const pc = document.getElementById("pairCodeDisplay");
-      pc.innerText = `🔐 Code: ${code}`;
-      pc.style.display = "block";
-    });
-
-    socket.on("status", (statusText) => {
-      document.getElementById("status").innerText = statusText;
-    });
-
-    socket.on("error", (errorText) => {
-      document.getElementById("status").innerText = "❌ " + errorText;
-    });
-  </script>
+  socket.on("sessionReady", (zipPath) => {
+    downloadLink.href = zipPath;
+    downloadLink.style.display = "block";
+    status.textContent = "✅ Session ready! You can download it.";
+  });
+</script>
 </body>
 </html>
